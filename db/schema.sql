@@ -143,3 +143,23 @@ create policy jobs_public_read on public.jobs
   for select to anon, authenticated using (status = 'live');
 
 -- no anon policy on source_state or job_sources: service role only.
+
+-- ---------------------------------------------------------------- grants
+-- RLS and GRANTs are two separate layers. service_role bypasses RLS but it
+-- still needs ordinary table privileges, and newer Supabase projects do not
+-- grant these automatically when a table is created. Without this block every
+-- request fails with 42501 "permission denied", even with a valid key.
+grant usage on schema public to anon, authenticated, service_role;
+
+grant all privileges on all tables    in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+grant all privileges on all functions in schema public to service_role;
+
+-- the public site reads with the anon key; the RLS policy above still limits
+-- it to status = 'live'.
+grant select on public.jobs to anon, authenticated;
+
+-- anything added to this schema later gets the same treatment
+alter default privileges in schema public grant all on tables    to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
+alter default privileges in schema public grant all on functions to service_role;
