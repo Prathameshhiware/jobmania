@@ -1,0 +1,89 @@
+---
+import { CATEGORIES } from '../lib/format.js';
+const year = new Date().getFullYear();
+---
+<footer>
+  <section class="notice glass" aria-labelledby="notice-h">
+    <h2 id="notice-h">Before you apply</h2>
+    <p>JoBmania lists openings published by employers. These four things matter most if you are about to travel to a walk-in.</p>
+    <div class="notice-grid">
+      <div class="note">
+        <h3>We are not the employer</h3>
+        <p>We collect openings from employers’ own careers pages and send you to their official application page. Screening, interviews and offers are handled entirely by them.</p>
+      </div>
+      <div class="note">
+        <h3>Confirm before you travel</h3>
+        <p>Vacancies, venues and timings can change or close at short notice. We re-check daily, but always confirm on the employer’s page before spending time or money on a journey.</p>
+      </div>
+      <div class="note">
+        <h3>Guard your documents</h3>
+        <p>Do not hand over Aadhaar, PAN, bank details or original certificates until you have confirmed the employer is genuine. A real employer asks after an offer, not before an interview.</p>
+      </div>
+      <div class="note">
+        <h3>No guarantee of employment</h3>
+        <p>A listing here is not an endorsement, and we cannot promise an interview or a job. Company names identify the employer only; we are not affiliated with them.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot-end">
+    <div class="foot-id">
+      <a class="brand" href="/">Jo<b>B</b>mania</a>
+      <p>Openings that are still actually open. Sourced from employers’ own careers pages and re-checked daily.</p>
+    </div>
+    <nav class="foot-links" aria-label="Footer">
+      <div class="link-row">
+        <h4>Jobs</h4>
+        {CATEGORIES.map((c) => <a href={`/c/${c.slug}`}>{c.label}</a>)}
+      </div>
+      <div class="link-row">
+        <h4>Cities</h4>
+        <a href="/city/hyderabad">Hyderabad</a><a href="/city/bengaluru">Bengaluru</a><a href="/city/chennai">Chennai</a><a href="/city/mumbai">Mumbai</a><a href="/city/delhi-ncr">Delhi NCR</a><a href="/city/pune">Pune</a>
+      </div>
+      <div class="link-row">
+        <h4>About</h4>
+        <a href="/jobs">All jobs</a><a href="/#why">How we verify</a>
+      </div>
+    </nav>
+  </div>
+
+  <div class="legal">
+    <span>© {year} JoBmania</span>
+    <span class="spacer"></span>
+    <span>Company names and marks belong to their respective owners and are used only to identify the employer.</span>
+  </div>
+
+  <div class="alert" role="note">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <div class="alert-body">
+      <h3>Cross-check every opening before you act</h3>
+      <p>We screen listings and re-check them daily, but we cannot guarantee that every opening or every person contacting you is genuine. Before you share personal documents, attend an interview or pay anyone anything, verify the company and the role independently — on the employer’s own website, or by calling the official number listed there rather than a number sent to you.</p>
+      <p style="margin-top:10px">Never pay a registration fee, security deposit, training charge or “refundable” amount to get a job. No legitimate employer asks a candidate for money. JoBmania accepts no liability for any loss arising from your dealings with an employer, agency or individual found through this site.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  footer { padding-block: 72px 44px; display: flex; flex-direction: column; gap: 22px; }
+  .notice { border-radius: 26px; padding: 32px clamp(20px, 3vw, 36px); }
+  .notice h2 { font-size: clamp(20px, 2.4vw, 25px); font-weight: 800; margin-bottom: 7px; }
+  .notice > p { margin: 0 0 26px; font-size: 14px; font-weight: 500; color: var(--ink-2); max-width: 62ch; }
+  .notice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px 30px; }
+  .note h3 { font-size: 14px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 5px; }
+  .note p { margin: 0; font-size: 13px; color: var(--ink-2); }
+
+  .foot-end { margin-top: 18px; display: flex; gap: 32px 48px; flex-wrap: wrap; align-items: flex-start; }
+  .foot-id { flex: 1 1 250px; max-width: 320px; }
+  .foot-id p { margin: 12px 0 0; font-size: 14px; font-weight: 500; color: var(--ink-2); }
+  .brand { font-family: var(--display); font-size: 23px; font-weight: 800; letter-spacing: -0.05em; color: var(--ink); text-decoration: none; }
+  .brand b { color: var(--accent); }
+  .foot-links { flex: 2 1 420px; display: flex; flex-direction: column; gap: 16px; }
+  .link-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .link-row h4 { margin: 0; flex: 0 0 74px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); }
+  .link-row a { font-size: 14px; color: var(--ink-2); text-decoration: none; }
+  .link-row a::after { content: "·"; margin-left: 10px; color: var(--ink-4); }
+  .link-row a:last-child::after { content: ""; }
+
+  .legal { padding-top: 20px; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--ink-3); }
+  .legal .spacer { flex: 1 1 auto; }
+</style>

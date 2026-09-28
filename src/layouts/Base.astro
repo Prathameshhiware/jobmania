@@ -1,0 +1,51 @@
+---
+import '../styles/tokens.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+const {
+  title,
+  description = 'Job openings that are still actually open. Every listing re-checked daily against the employer’s own careers page.',
+  canonical,
+  noindex = false,
+  maxAge = 300,
+} = Astro.props;
+
+// Edge-cache briefly, then revalidate in the background. Freshness is the
+// product, so nothing is cached for long.
+Astro.response.headers.set('Cache-Control', `public, max-age=0, s-maxage=${maxAge}, stale-while-revalidate=600`);
+
+const site = Astro.site?.origin ?? '';
+const href = canonical ?? new URL(Astro.url.pathname, Astro.site ?? 'https://jobmania.vercel.app').href;
+---
+<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{title}</title>
+  <meta name="description" content={description}>
+  <link rel="canonical" href={href}>
+  {noindex && <meta name="robots" content="noindex, follow">}
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="JoBmania">
+  <meta property="og:title" content={title}>
+  <meta property="og:description" content={description}>
+  <meta property="og:url" content={href}>
+  <meta name="twitter:card" content="summary">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+
+  <slot name="head" />
+</head>
+<body>
+  <div class="wrap">
+    <Nav />
+    <slot />
+    <Footer />
+  </div>
+</body>
+</html>

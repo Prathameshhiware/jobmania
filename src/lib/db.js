@@ -1,0 +1,121 @@
+// Read side. Uses the ANON key: RLS restricts it to status = 'live', so the
+// site physically cannot serve an expired or unreviewed listing even if a query
+// forgets to filter. The service_role key never touches the website.
+
+import { createClient } from '@supabase/supabase-js';
+
+const env = (k) => import.meta.env?.[k] ?? process.env?.[k];
+
+const url = env('SUPABASE_URL');
+const key = env('SUPABASE_ANON_KEY');
+
+if (!url || !key) {
+  throw new Error(
+    'Missing SUPABASE_URL or SUPABASE_ANON_KEY.\n' +
+    'Local: add them to .env.local.  Vercel: add them as Environment Variables.\n' +
+    'Use the ANON key here, never service_role — this key is used by the public site.'
+  );
+}
+
+export const sb = createClient(url, key, { auth: { persistSession: false } });
+
+const CARD = 'short_id, slug, company_name, company_slug, title, city_primary, is_remote, ' +
+             'exp_min, exp_max, experience_level, qualification, hiring_type, work_mode, ' +
+             'salary_min, salary_max, salary_currency, salary_period, ' +
+             'posted_at, valid_through, last_verified_at, apply_url, ' +
+             'walkin_start, walkin_end, walkin_time, walkin_venue';
+
+const live = () => sb.from('jobs').select(CARD).eq('status', 'live');
+
+export async function getLatest(limit = 9) {
+  const { data } = await live().order('posted_at', { ascending: false }).limit(limit);
+  return data ?? [];
+}
+
+export async function getClosingSoon(limit = 5) {
+  const in7 = new Date(Date.now() + 7 * 864e5).toISOString();
+  const { data } = await live()
+    .lt('valid_through', in7).gt('valid_through', new Date().toISOString())
+    .order('valid_through', { ascending: true }).limit(limit);
+  return data ?? [];
+}
+
+export async function getJobBySlug(slug) {
+  const { data } = await sb.from('jobs').select('*').eq('slug', slug).eq('status', 'live').maybeSingle();
+  return data ?? null;
+}
+
+export async function getSimilar(job, limit = 4) {
+  if (!job) return [];
+  const { data } = await live()
+    .eq('city_primary', job.city_primary)
+    .neq('slug', job.slug)
+    .order('posted_at', { ascending: false })
+    .limit(limit);
+  return data ?? [];
+}
+
+export async function getByCompany(companySlug, limit = 50) {
+  const { data } = await live().eq('company_slug', companySlug)
+    .order('posted_at', { ascending: false }).limit(limit);
+  return data ?? [];
+}
+
+export async function getByFacet({ city, hiringType, level, remote } = {}, limit = 60) {
+  let q = live();
+  if (city) q = q.eq('city_primary', city);
+  if (hiringType) q = q.eq('hiring_type', hiringType);
+  if (level) q = q.eq('experience_level', level);
+  if (remote) q = q.eq('is_remote', true);
+  const { data } = await q.order('posted_at', { ascending: false }).limit(limit);
+  return data ?? [];
+}
+
+/** One pass over the live set: counts for every facet the nav and home need. */
+export async function getFacets() {
+  const { data } = await sb.from('jobs')
+    .select('city_primary, hiring_type, experience_level, company_name, company_slug, is_remote, first_seen_at, walkin_start')
+    .eq('status', 'live');
+
+  const rows = data ?? [];
+  const tally = (key) => rows.reduce((a, r) => (r[key] && (a[r[key]] = (a[r[key]] ?? 0) + 1), a), {});
+  const sorted = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]);
+
+  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+
+  const companies = rows.reduce((a, r) => {
+    if (!r.company_slug) return a;
+    a[r.company_slug] ??= { slug: r.company_slug, name: r.company_name, n: 0 };
+    a[r.company_slug].n++;
+    return a;
+  }, {});
+
+  return {
+    total: rows.length,
+    addedToday: rows.filter((r) => new Date(r.first_seen_at) >= midnight).length,
+    walkinsThisWeek: rows.filter((r) => r.walkin_start && r.walkin_start <= weekEnd).length,
+    remote: rows.filter((r) => r.is_remote).length,
+    cities: sorted(tally('city_primary')),
+    types: tally('hiring_type'),
+    levels: tally('experience_level'),
+    companies: Object.values(companies).sort((a, b) => b.n - a.n),
+  };
+}
+
+/** Every live slug, for the sitemap. */
+export async function getAllLive() {
+  const { data } = await sb.from('jobs')
+    .select('slug, company_slug, city_primary, hiring_type, posted_at, updated_at')
+    .eq('status', 'live').order('posted_at', { ascending: false }).limit(5000);
+  return data ?? [];
+}
+
+export async function search(q, limit = 60) {
+  if (!q) return [];
+  const term = q.trim().replace(/[%,]/g, ' ');
+  const { data } = await live()
+    .or(`title.ilike.%${term}%,company_name.ilike.%${term}%,city_primary.ilike.%${term}%`)
+    .order('posted_at', { ascending: false }).limit(limit);
+  return data ?? [];
+}

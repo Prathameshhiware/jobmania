@@ -1,0 +1,145 @@
+/* JoBmania design tokens.
+   Change a value here and the whole site follows. Nothing below this file
+   should hard-code a colour. */
+
+:root {
+  /* pastel field */
+  --field-1: #CFC9EC; --field-2: #BFC7EC; --field-3: #EAD2DA;
+  --field-4: #DACBE8; --field-5: #F2DCD6;
+  --base-a: #C3BEE4;  --base-b: #EEDAD4;
+
+  /* ink */
+  --ink: #221F33; --ink-2: #443F5E; --ink-3: #5A5575; --ink-4: #635E80;
+
+  --accent: #4F55BE;
+  --anchor: #262338; --on-anchor: #FFFFFF; --anchor-icon: #ABB2F5;
+
+  /* glass */
+  --glass: rgba(255,255,255,0.40);
+  --glass-strong: rgba(255,255,255,0.50);
+  --glass-chip: rgba(255,255,255,0.55);
+  --glass-edge: rgba(255,255,255,0.70);
+  --glass-top: rgba(255,255,255,0.92);
+  --hairline: rgba(70,60,110,0.16);
+  --shadow: rgba(70,60,110,0.30);
+
+  /* status */
+  --ok: #0E7A4A; --ok-ink: #0E5C3A; --ok-soft: rgba(14,122,74,0.13);
+  --warn: #A8690E; --warn-ink: #7A4A06;
+  --warn-soft: rgba(168,105,14,0.11); --warn-line: rgba(168,105,14,0.30);
+
+  --display: Sora, "Trebuchet MS", sans-serif;
+  --body: "Schibsted Grotesk", system-ui, -apple-system, sans-serif;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --field-1: #3A3158; --field-2: #2E3560; --field-3: #4A3244;
+    --field-4: #382C52; --field-5: #4A3038;
+    --base-a: #221D33;  --base-b: #2E2330;
+    --ink: #F2EFFA; --ink-2: #CFC8E4; --ink-3: #ACA3C6; --ink-4: #9A90B6;
+    --accent: #ADB3F7; --anchor: #14111F; --anchor-icon: #ADB3F7;
+    --glass: rgba(255,255,255,0.08);
+    --glass-strong: rgba(255,255,255,0.11);
+    --glass-chip: rgba(255,255,255,0.10);
+    --glass-edge: rgba(255,255,255,0.16);
+    --glass-top: rgba(255,255,255,0.20);
+    --hairline: rgba(255,255,255,0.14);
+    --shadow: rgba(0,0,0,0.55);
+    --ok: #34D399; --ok-ink: #6EE7B7; --ok-soft: rgba(52,211,153,0.16);
+    --warn: #FBBF24; --warn-ink: #FCD34D;
+    --warn-soft: rgba(251,191,36,0.12); --warn-line: rgba(251,191,36,0.32);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --field-1: #3A3158; --field-2: #2E3560; --field-3: #4A3244;
+  --field-4: #382C52; --field-5: #4A3038;
+  --base-a: #221D33;  --base-b: #2E2330;
+  --ink: #F2EFFA; --ink-2: #CFC8E4; --ink-3: #ACA3C6; --ink-4: #9A90B6;
+  --accent: #ADB3F7; --anchor: #14111F; --anchor-icon: #ADB3F7;
+  --glass: rgba(255,255,255,0.08);
+  --glass-strong: rgba(255,255,255,0.11);
+  --glass-chip: rgba(255,255,255,0.10);
+  --glass-edge: rgba(255,255,255,0.16);
+  --glass-top: rgba(255,255,255,0.20);
+  --hairline: rgba(255,255,255,0.14);
+  --shadow: rgba(0,0,0,0.55);
+  --ok: #34D399; --ok-ink: #6EE7B7; --ok-soft: rgba(52,211,153,0.16);
+  --warn: #FBBF24; --warn-ink: #FCD34D;
+  --warn-soft: rgba(251,191,36,0.12); --warn-line: rgba(251,191,36,0.32);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--body);
+  color: var(--ink);
+  background-color: var(--base-a);
+  background-image:
+    radial-gradient(46% 22% at 6% 0%,   var(--field-1), transparent 70%),
+    radial-gradient(42% 20% at 96% 4%,  var(--field-2), transparent 68%),
+    radial-gradient(50% 20% at 80% 34%, var(--field-3), transparent 66%),
+    radial-gradient(46% 18% at 10% 58%, var(--field-4), transparent 66%),
+    radial-gradient(54% 22% at 56% 96%, var(--field-5), transparent 70%),
+    linear-gradient(160deg, var(--base-a) 0%, var(--base-b) 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+}
+
+img { max-width: 100%; }
+
+.wrap { max-width: 1180px; margin-inline: auto; padding-inline: 20px; }
+
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: inset 0 1px 0 var(--glass-top), 0 18px 42px -20px var(--shadow);
+}
+
+h1, h2, h3 { font-family: var(--display); letter-spacing: -0.045em; text-wrap: balance; margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: 46px; padding-inline: 24px;
+  background: var(--anchor); color: var(--on-anchor);
+  font-family: var(--display); font-size: 14px; font-weight: 600; letter-spacing: -0.015em;
+  border: 0; border-radius: 999px; text-decoration: none; cursor: pointer;
+}
+.btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--glass-edge); }
+
+.chip {
+  background: var(--glass-chip); border: 1px solid var(--glass-edge); color: var(--ink-2);
+  font-size: 13px; font-weight: 500; padding: 9px 15px; border-radius: 12px;
+  text-decoration: none; display: inline-block;
+}
+.dot { width: 7px; height: 7px; border-radius: 999px; background: var(--ok); flex: none; display: inline-block; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ok-ink); }
+.status.warn { color: var(--warn-ink); }
+.status.warn .dot { background: var(--warn); }
+
+.card { border-radius: 26px; padding: 28px clamp(20px, 3vw, 32px); }
+.sec-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.sec-head h2 { font-size: clamp(25px, 3.4vw, 32px); font-weight: 800; }
+.sec-head .more { margin-left: auto; font-size: 14px; font-weight: 600; text-decoration: none; }
+.sub { margin: 7px 0 26px; font-size: 15px; font-weight: 500; color: var(--ink-2); }
+
+.alert {
+  border-radius: 20px; padding: 22px clamp(18px, 2.6vw, 26px);
+  background: var(--warn-soft); border: 1px solid var(--warn-line);
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start;
+}
+.alert > svg { flex: none; color: var(--warn-ink); margin-top: 2px; }
+.alert h3 { font-size: 15px; font-weight: 700; color: var(--warn-ink); margin-bottom: 8px; }
+.alert p { margin: 0; font-size: 13px; line-height: 1.75; color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

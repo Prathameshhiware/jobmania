@@ -4,14 +4,21 @@
   "private": true,
   "type": "module",
   "description": "JoBmania — job aggregator. Ingestion pipeline and monitor.",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
     "backfill": "node src/backfill.js",
     "monitor": "node src/monitor.js",
     "expire": "node src/expire.js",
     "stats": "node src/stats.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "@astrojs/vercel": "^8.2.11",
+    "@supabase/supabase-js": "^2.45.0",
+    "astro": "^5.18.2"
   }
 }
