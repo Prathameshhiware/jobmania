@@ -1,0 +1,35 @@
+name: Monitor
+
+# Watches the source for new openings and adds them to Supabase.
+# Public repo -> Actions minutes are unlimited, so a 10-minute cadence is free.
+# GitHub's scheduler is best-effort and can run late under load; the cursor
+# means a late run simply picks up everything it missed.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --omit=dev
+
+      - name: Poll for new openings
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run monitor
