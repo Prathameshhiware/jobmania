@@ -6,7 +6,16 @@ import vercel from '@astrojs/vercel';
 export default defineConfig({
   output: 'server',
   adapter: vercel(),
-  site: process.env.SITE_URL ?? 'https://jobmania.vercel.app',
+  // Canonicals, sitemap and JSON-LD all need an absolute origin. SITE_URL wins
+  // once a real domain exists; before that Vercel supplies its own production
+  // host, so nothing points at a placeholder on the first deploy.
+  site:
+    process.env.SITE_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:4321'),
   srcDir: './src',
   publicDir: './public',
   build: { format: 'directory' },
