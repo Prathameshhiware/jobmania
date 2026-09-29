@@ -1,13 +1,17 @@
 ---
 import Base from '../layouts/Base.astro';
 import JobList from '../components/JobList.astro';
-import { search, getByFacet, getLatest, getFacets } from '../lib/db.js';
+import { search, getByFacet, getLatest, getFacets, sanitizeSearchTerm } from '../lib/db.js';
 import { citySlug, CATEGORIES } from '../lib/format.js';
 import {
   titles, descriptions, breadcrumbSchema, itemListSchema, collectionPageSchema,
 } from '../lib/seo.js';
 
-const q = Astro.url.searchParams.get('q')?.trim() ?? '';
+// Sanitised here, not just before the query. The term is echoed into the h1,
+// the <title> and og:title, and og:title is what a link preview renders — so a
+// crafted ?q= would put arbitrary text on a card bearing this domain. noindex
+// keeps search pages out of Google but does nothing about link previews.
+const q = sanitizeSearchTerm(Astro.url.searchParams.get('q') ?? '');
 const city = Astro.url.searchParams.get('city')?.trim() ?? '';
 
 const facets = await getFacets();

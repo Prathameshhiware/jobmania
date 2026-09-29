@@ -49,7 +49,10 @@ export async function POST({ cookies }) {
     return json({ visitors: BASELINE + Number(data ?? 0), counted: !returning });
   } catch (err) {
     // A counter is decoration. If it fails the page carries on without it.
-    return json({ visitors: null, error: String(err.message ?? err) }, 200);
+    // The reason is logged, never returned: a database error message handed to
+    // the caller describes schema and internals to anyone who can curl this.
+    console.error('visit: ', err?.message ?? err);
+    return json({ visitors: null }, 200);
   }
 }
 
@@ -62,6 +65,7 @@ export async function GET() {
     const real = Number(data ?? 0);
     return json({ visitors: BASELINE + real, real, baseline: BASELINE });
   } catch (err) {
-    return json({ visitors: null, error: String(err.message ?? err) }, 200);
+    console.error('visit: ', err?.message ?? err);
+    return json({ visitors: null }, 200);
   }
 }
