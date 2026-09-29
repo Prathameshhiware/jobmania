@@ -78,6 +78,10 @@ const jsonLd = {
 
 const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
 
+// Declared before the schema builders below, which both read them.
+const verifiedAgo = timeAgo(job.last_verified_at ?? job.posted_at);
+const closedOn = fmtDate(job.valid_through);
+
 const crumbs = breadcrumbSchema(origin, [
   { name: 'Home', path: '/' },
   ...(job.city_primary ? [{ name: job.city_primary, path: `/city/${citySlug(job.city_primary)}` }] : []),
@@ -118,8 +122,6 @@ const jobFaq = faqSchema([
 
 // Built here rather than inline: nested template literals inside markup
 // expressions do not survive the Astro/esbuild transform.
-const verifiedAgo = timeAgo(job.last_verified_at ?? job.posted_at);
-const closedOn = fmtDate(job.valid_through);
 const pageTitle = closed
   ? titles.jobClosed(job.title, job.company_name)
   : titles.job(job.title, job.company_name, where);

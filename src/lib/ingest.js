@@ -80,6 +80,16 @@ export async function ingestPosts(posts, categories, { resolve = true, log = con
       await sleep(250); // be gentle on employer sites too
     }
 
+    // Final gate. A working apply link is not enough — a backfill reaches back
+    // over postings whose deadline has already elapsed, and a reachable link on
+    // a finished role is exactly the listing that sends someone to a closed
+    // drive. Nothing goes live with a deadline in the past.
+    if (row.status === 'live' && new Date(row.valid_through) <= new Date()) {
+      row.status = 'expired';
+      row.review_reason = 'deadline already passed when ingested';
+      // counters are tallied from inserted.status below, so nothing to adjust
+    }
+
     const { data: inserted, error } = await db.from('jobs').insert(row).select('id, status').single();
     if (error) {
       if (!/duplicate key/i.test(error.message)) log(`  ! ${row.company_name}: ${error.message}`);
