@@ -47,9 +47,26 @@ export async function getClosingSoon(limit = 5) {
   return data ?? [];
 }
 
+/**
+ * One listing by slug, live OR closed. RLS keeps unvetted rows out entirely,
+ * so anything this returns is safe to render; the page decides how to present
+ * a closed one. Every LIST query still filters to 'live' explicitly.
+ */
 export async function getJobBySlug(slug) {
-  const { data } = await sb.from('jobs').select('*').eq('slug', slug).eq('status', 'live').maybeSingle();
+  const { data } = await sb.from('jobs').select('*').eq('slug', slug).maybeSingle();
   return data ?? null;
+}
+
+/** Live alternatives to offer on a closed listing. */
+export async function getAlternatives(job, limit = 3) {
+  if (!job) return [];
+  let q = live();
+  if (job.city_primary) q = q.eq('city_primary', job.city_primary);
+  const { data } = await q.order('posted_at', { ascending: false }).limit(limit);
+  if (data?.length) return data;
+  // nothing in that city any more — fall back to the newest anywhere
+  const { data: any } = await live().order('posted_at', { ascending: false }).limit(limit);
+  return any ?? [];
 }
 
 export async function getSimilar(job, limit = 4) {

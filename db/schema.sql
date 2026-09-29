@@ -147,10 +147,14 @@ alter table public.jobs         enable row level security;
 alter table public.source_state enable row level security;
 alter table public.job_sources  enable row level security;
 
--- the public site reads live rows only; everything else needs the service role
+-- The public site reads live rows plus the two closed states, so a stale link
+-- lands on a page that says the role closed instead of a 404. needs_review and
+-- rejected stay private — those rows have not been vetted. List queries filter
+-- to 'live' explicitly, so nothing closed reaches a listing or the sitemap.
 drop policy if exists jobs_public_read on public.jobs;
 create policy jobs_public_read on public.jobs
-  for select to anon, authenticated using (status = 'live');
+  for select to anon, authenticated
+  using (status in ('live', 'expired', 'dead_link'));
 
 -- no anon policy on source_state or job_sources: service role only.
 

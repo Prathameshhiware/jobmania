@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import JobCard from '../../components/JobCard.astro';
-import { getJobBySlug, getSimilar, getByCompany } from '../../lib/db.js';
+import { getJobBySlug, getSimilar, getByCompany, getAlternatives } from '../../lib/db.js';
 import {
   timeAgo, daysLeft, experienceLabel, salaryLabel, locationLabel,
   walkinLabel, citySlug, TYPE_LABEL,
@@ -12,11 +12,23 @@ const job = await getJobBySlug(slug);
 
 if (!job) return Astro.redirect('/404', 404);
 
-const [similar, sameCompany] = await Promise.all([
+// A closed listing still gets a page. Someone following a bookmark or a stale
+// search result deserves "this finished on 12 August, here is what is open"
+// rather than a 404. It carries no JobPosting schema and is noindex, because
+// serving a closed role as an open one is a structured-data violation.
+const closed = job.status !== 'live';
+const closedReason = job.status === 'dead_link'
+  ? 'The employer took the application page down.'
+  : job.hiring_type === 'walk-in'
+    ? 'This walk-in drive has finished.'
+    : 'The application deadline has passed.';
+
+const [similar, sameCompany, alternatives] = await Promise.all([
   getSimilar(job, 3),
   getByCompany(job.company_slug, 6),
+  closed ? getAlternatives(job, 3) : Promise.resolve([]),
 ]);
-const others = sameCompany.filter((j) => j.slug !== job.slug);
+const others = sameCompany.filter((j) => j.slug !== job.slug && j.status === 'live');
 
 const exp = experienceLabel(job.exp_min, job.exp_max);
 const pay = salaryLabel(job);
@@ -77,15 +89,22 @@ const clean = (o) => JSON.parse(JSON.stringify(o));
 // Built here rather than inline: nested template literals inside markup
 // expressions do not survive the Astro/esbuild transform.
 const verifiedAgo = timeAgo(job.last_verified_at ?? job.posted_at);
-const pageTitle = `${job.title} at ${job.company_name}${where ? ` — ${where}` : ''} | JoBmania`;
-const pageDesc = `${factSentence} Apply on ${job.company_name}'s official page. Verified ${verifiedAgo}.`;
+const pageTitle = closed
+  ? `${job.title} at ${job.company_name} — closed | JoBmania`
+  : `${job.title} at ${job.company_name}${where ? ` — ${where}` : ''} | JoBmania`;
+const pageDesc = closed
+  ? `${closedReason} This ${job.company_name} opening is no longer accepting applications. See what is currently open${where ? ` in ${where}` : ''}.`
+  : `${factSentence} Apply on ${job.company_name}'s official page. Verified ${verifiedAgo}.`;
+const closedOn = fmtDate(job.valid_through);
 const deadlineLabel = left == null ? null
   : left <= 0 ? 'Closes today'
   : `${left} day${left === 1 ? '' : 's'} left to apply`;
 ---
-<Base title={pageTitle} description={pageDesc} maxAge={300}>
+<Base title={pageTitle} description={pageDesc} maxAge={300} noindex={closed}>
   <Fragment slot="head">
-    <script type="application/ld+json" set:html={JSON.stringify(clean(jsonLd))} />
+    {/* No JobPosting on a closed role: describing a finished opening as open
+        is a structured-data violation, and the page is noindex anyway. */}
+    {!closed && <script type="application/ld+json" set:html={JSON.stringify(clean(jsonLd))} />}
     <script type="application/ld+json" set:html={JSON.stringify(clean(crumbs))} />
   </Fragment>
 
@@ -98,10 +117,22 @@ const deadlineLabel = left == null ? null
 
   <div class="cols">
     <main class="stack">
+      {closed && (
+        <div class="closed-band" role="note">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+          <div>
+            <h2>This opening is closed</h2>
+            <p>{closedReason}{closedOn ? ` It stopped accepting applications on ${closedOn}.` : ''} We keep the page so you know what happened rather than hitting a dead end — but do not travel or apply on the strength of it.</p>
+          </div>
+        </div>
+      )}
+
       <header class="card glass">
         <div class="head-co">
           <span class="co">{job.company_name}</span><span class="sep"></span>
-          <span class="status"><span class="dot"></span>Verified {timeAgo(job.last_verified_at ?? job.posted_at)}</span>
+          {closed
+            ? <span class="status closed-tag">Closed</span>
+            : <span class="status"><span class="dot"></span>Verified {timeAgo(job.last_verified_at ?? job.posted_at)}</span>}
         </div>
         <h1>{job.title}</h1>
         <div class="chips">
@@ -174,6 +205,14 @@ const deadlineLabel = left == null ? null
         )}
       </section>
 
+      {closed && alternatives.length > 0 && (
+        <section>
+          <div class="sec-head"><h2>Open right now{job.city_primary ? ` in ${job.city_primary}` : ''}</h2></div>
+          <p class="sec-note">Live openings, link-checked within the last 24 hours.</p>
+          <div class="grid-job">{alternatives.map((j) => <JobCard job={j} compact />)}</div>
+        </section>
+      )}
+
       {others.length > 0 && (
         <section>
           <div class="sec-head"><h2>More at {job.company_name}</h2></div>
@@ -184,21 +223,36 @@ const deadlineLabel = left == null ? null
 
     <aside class="stack">
       <div class="card glass aside">
-        {deadlineLabel && left <= 14 && (
-          <span class="deadline">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-            {deadlineLabel}
-          </span>
+        {closed ? (
+          <>
+            <span class="deadline muted">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+              No longer accepting applications
+            </span>
+            <a class="btn apply" href={job.city_primary ? `/city/${citySlug(job.city_primary)}` : '/jobs'}>
+              See what’s open{job.city_primary ? ` in ${job.city_primary}` : ''}
+            </a>
+            <p class="note">We removed this one rather than leaving it up. That is the point of the site.</p>
+          </>
+        ) : (
+          <>
+            {deadlineLabel && left <= 14 && (
+              <span class="deadline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                {deadlineLabel}
+              </span>
+            )}
+            {job.apply_url
+              ? <>
+                  <a class="btn apply" href={job.apply_url} target="_blank" rel="noopener nofollow ugc">
+                    Apply on {job.company_name}
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+                  </a>
+                  <p class="note">Opens {job.company_name}’s official application page. We never collect your application.</p>
+                </>
+              : <p class="note">This listing has no online application link — it is a walk-in. Check the venue and timing above.</p>}
+          </>
         )}
-        {job.apply_url
-          ? <>
-              <a class="btn apply" href={job.apply_url} target="_blank" rel="noopener nofollow ugc">
-                Apply on {job.company_name}
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
-              </a>
-              <p class="note">Opens {job.company_name}’s official application page. We never collect your application.</p>
-            </>
-          : <p class="note">This listing has no online application link — it is a walk-in. Check the venue and timing above.</p>}
       </div>
 
       <div class="card glass aside">
@@ -230,6 +284,17 @@ const deadlineLabel = left == null ? null
 </Base>
 
 <style>
+  .closed-band {
+    display: flex; gap: 16px; align-items: flex-start;
+    border-radius: 20px; padding: 22px clamp(18px, 2.6vw, 26px);
+    background: var(--warn-soft); border: 1px solid var(--warn-line);
+  }
+  .closed-band > svg { flex: none; color: var(--warn-ink); margin-top: 2px; }
+  .closed-band h2 { font-size: 16px; font-weight: 700; color: var(--warn-ink); margin-bottom: 7px; }
+  .closed-band p { margin: 0; font-size: 13px; line-height: 1.75; color: var(--ink-2); }
+  .status.closed-tag { color: var(--ink-3); background: var(--glass-chip); border: 1px solid var(--glass-edge); padding: 4px 11px; border-radius: 999px; font-size: 12px; }
+  .deadline.muted { color: var(--ink-3); }
+
   .crumbs { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--ink-3); padding-block: 22px 0; }
   .crumbs a { color: var(--ink-2); text-decoration: none; font-weight: 500; }
   .cols { display: grid; grid-template-columns: minmax(0,1fr) 330px; gap: 22px; align-items: start; padding-block: 18px; }
