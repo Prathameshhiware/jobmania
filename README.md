@@ -2,6 +2,8 @@
 
 Job aggregator for the Indian market. Openings that are still actually open.
 
+**Live: [jobmania.dpdns.org](https://jobmania.dpdns.org)**
+
 This repo is the **ingestion pipeline**: it discovers openings, resolves them
 against the employer's own careers board, stores structured facts in Supabase,
 and retires listings that have closed. The website is a separate concern and
