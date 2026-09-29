@@ -12,6 +12,11 @@ import { sb } from '../../lib/db.js';
 const COOKIE = 'jm_seen';
 const YEAR = 60 * 60 * 24 * 365;
 
+// Displayed count = baseline + real visits. The stored counter always holds the
+// TRUE number, so real traffic stays measurable and the baseline can be dropped
+// at any time by setting this to 0 without losing any history.
+const BASELINE = Number(import.meta.env?.VISITOR_BASELINE ?? process.env?.VISITOR_BASELINE ?? 0) || 0;
+
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -41,19 +46,21 @@ export async function POST({ cookies }) {
       });
     }
 
-    return json({ visitors: Number(data ?? 0), counted: !returning });
+    return json({ visitors: BASELINE + Number(data ?? 0), counted: !returning });
   } catch (err) {
     // A counter is decoration. If it fails the page carries on without it.
     return json({ visitors: null, error: String(err.message ?? err) }, 200);
   }
 }
 
-// GET reads without incrementing — handy for checking the number.
+// GET reads without incrementing. Returns both numbers so the true traffic is
+// always visible to you even while a baseline is being displayed.
 export async function GET() {
   try {
     const { data, error } = await sb.rpc('get_visitors');
     if (error) throw new Error(error.message);
-    return json({ visitors: Number(data ?? 0) });
+    const real = Number(data ?? 0);
+    return json({ visitors: BASELINE + real, real, baseline: BASELINE });
   } catch (err) {
     return json({ visitors: null, error: String(err.message ?? err) }, 200);
   }
