@@ -49,9 +49,32 @@ const year = new Date().getFullYear();
 
   <div class="legal">
     <span>© {year} JoBmania</span>
+    <span class="visitors" id="jm-visitors" hidden>
+      <span class="dot"></span><b id="jm-visitor-count">—</b> <span id="jm-visitor-label">visitors</span>
+    </span>
     <span class="spacer"></span>
     <span>Company names and marks belong to their respective owners and are used only to identify the employer.</span>
   </div>
+
+  <script is:inline>
+    // Pages are edge-cached, so the count cannot be rendered server-side — it
+    // would be frozen for everyone sharing a cached copy. This call is never
+    // cached. A new browser is counted once; a returning one just reads.
+    (async () => {
+      const wrap = document.getElementById('jm-visitors');
+      const out = document.getElementById('jm-visitor-count');
+      const label = document.getElementById('jm-visitor-label');
+      if (!wrap || !out) return;
+      try {
+        const res = await fetch('/api/visit', { method: 'POST', headers: { accept: 'application/json' } });
+        const { visitors } = await res.json();
+        if (typeof visitors !== 'number') return;   // counter down: stay hidden
+        out.textContent = visitors.toLocaleString('en-IN');
+        if (label) label.textContent = visitors === 1 ? 'visitor' : 'visitors';
+        wrap.hidden = false;
+      } catch { /* decoration only — never let this break the page */ }
+    })();
+  </script>
 
   <div class="alert" role="note">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
@@ -86,4 +109,6 @@ const year = new Date().getFullYear();
 
   .legal { padding-top: 20px; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--ink-3); }
   .legal .spacer { flex: 1 1 auto; }
+  .visitors { display: inline-flex; align-items: center; gap: 8px; }
+  .visitors b { font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 </style>
