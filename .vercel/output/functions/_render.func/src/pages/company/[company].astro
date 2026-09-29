@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import JobList from '../../components/JobList.astro';
+import { getByCompany } from '../../lib/db.js';
+
+const { company } = Astro.params;
+const jobs = await getByCompany(company, 60);
+if (!jobs.length) return Astro.redirect('/404', 404);
+
+const name = jobs[0].company_name;
+const cities = [...new Set(jobs.map((j) => j.city_primary).filter(Boolean))];
+const sub = `Every live opening we hold for ${name}${cities.length ? `, across ${cities.slice(0, 4).join(', ')}` : ''}. We link to ${name}’s own application pages — we are not affiliated with them.`;
+---
+<Base
+  title={`${name} jobs — ${jobs.length} live openings | JoBmania`}
+  description={sub}
+  noindex={jobs.length < 2}
+>
+  <JobList heading={`Jobs at ${name}`} sub={sub} jobs={jobs} crumb={name} />
+</Base>

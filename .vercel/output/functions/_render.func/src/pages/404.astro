@@ -1,0 +1,40 @@
+---
+import Base from '../layouts/Base.astro';
+import JobCard from '../components/JobCard.astro';
+import { getLatest } from '../lib/db.js';
+
+// Most 404s here are a listing we have since delisted, which is the system
+// working. Say so plainly and hand the reader something live.
+const latest = await getLatest(3);
+---
+<Base title="This opening is no longer live | JoBmania" noindex maxAge={60}>
+  <div class="lead">
+    <h1>This opening is no longer live.</h1>
+    <p class="sub">
+      Either it closed, or the employer’s application link stopped working and we
+      delisted it. We remove openings rather than leaving them up — that is the
+      whole point of the site, even when it means a dead end for you here.
+    </p>
+    <div class="actions">
+      <a class="btn" href="/jobs">Browse live openings</a>
+      <a class="btn ghost" href="/">Back to home</a>
+    </div>
+  </div>
+
+  {latest.length > 0 && (
+    <section>
+      <h2>Posted most recently</h2>
+      <div class="grid-job">{latest.map((job) => <JobCard job={job} compact />)}</div>
+    </section>
+  )}
+</Base>
+
+<style>
+  .lead { padding-block: 64px 30px; max-width: 62ch; }
+  .lead h1 { font-size: clamp(30px, 5vw, 46px); font-weight: 800; line-height: 1.08; letter-spacing: -0.05em; }
+  .sub { margin: 18px 0 0; font-size: 16px; font-weight: 500; color: var(--ink-2); }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+  section { padding-block: 30px 0; }
+  section h2 { font-size: 20px; font-weight: 800; margin-bottom: 18px; }
+  .grid-job { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+</style>

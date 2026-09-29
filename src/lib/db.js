@@ -6,18 +6,25 @@ import { createClient } from '@supabase/supabase-js';
 
 const env = (k) => import.meta.env?.[k] ?? process.env?.[k];
 
-const url = env('SUPABASE_URL');
-const key = env('SUPABASE_ANON_KEY');
-
-if (!url || !key) {
-  throw new Error(
-    'Missing SUPABASE_URL or SUPABASE_ANON_KEY.\n' +
-    'Local: add them to .env.local.  Vercel: add them as Environment Variables.\n' +
-    'Use the ANON key here, never service_role — this key is used by the public site.'
-  );
+// Created on first query rather than at import, so a missing variable surfaces
+// as a clear error on the request instead of failing the build.
+let client = null;
+function conn() {
+  if (client) return client;
+  const url = env('SUPABASE_URL');
+  const key = env('SUPABASE_ANON_KEY');
+  if (!url || !key) {
+    throw new Error(
+      'Missing SUPABASE_URL or SUPABASE_ANON_KEY. ' +
+      'Local: add them to .env.local. Vercel: add them as Environment Variables. ' +
+      'Use the ANON key here, never service_role — this one is served to the public site.'
+    );
+  }
+  client = createClient(url, key, { auth: { persistSession: false } });
+  return client;
 }
 
-export const sb = createClient(url, key, { auth: { persistSession: false } });
+export const sb = new Proxy({}, { get: (_, prop) => conn()[prop] });
 
 const CARD = 'short_id, slug, company_name, company_slug, title, city_primary, is_remote, ' +
              'exp_min, exp_max, experience_level, qualification, hiring_type, work_mode, ' +

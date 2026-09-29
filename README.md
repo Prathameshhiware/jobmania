@@ -150,3 +150,50 @@ with two entries in `job_sources`.
 Employers' own boards are the best sources and need no discovery step:
 Greenhouse (`boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true`),
 Lever, Ashby and SmartRecruiters all publish open JSON.
+
+---
+
+## The website
+
+Astro, server-rendered, deployed on Vercel. It reads the same Supabase database
+through the **anon** key, so RLS restricts every query to `status = 'live'` —
+the site physically cannot serve an expired or unreviewed listing even if a
+query forgets to filter.
+
+```bash
+npm run dev      # localhost:4321
+npm run build    # production build
+```
+
+### Environment
+
+| Variable | Where |
+|---|---|
+| `SUPABASE_URL` | `.env.local` and Vercel |
+| `SUPABASE_ANON_KEY` | `.env.local` and Vercel — **anon**, never service_role |
+| `SITE_URL` | Vercel only, e.g. `https://jobmania.vercel.app` |
+
+The service_role key belongs to the ingest pipeline and GitHub Actions only. It
+must never appear in the site's environment.
+
+### Routes
+
+| Route | Page |
+|---|---|
+| `/` | Home — live counts, categories, latest, cities, closing soon |
+| `/jobs?q=&city=` | Search and browse all live openings |
+| `/job/{slug}` | Job detail, with `JobPosting` + `BreadcrumbList` schema |
+| `/c/{category}` | Just Posted, Freshers, Experienced, Remote, Walk-ins, Internships, Off-campus |
+| `/city/{city}` | One page per city that has live openings |
+| `/company/{slug}` | Every live opening for one employer |
+| `/sitemap.xml` | Live listings only — expired pages leave the same day |
+| `/robots.txt` | With the sitemap directive |
+
+### SEO notes
+
+`JobPosting` carries `validThrough` on every page, so Google expires a listing
+even if it has not recrawled. `baseSalary` is emitted **only** when the employer
+stated a figure — an invented range is a structured-data violation and a lie to
+the reader. `hiringOrganization` is the actual employer, never JoBmania.
+Facet pages with fewer than three results are `noindex` so thin pages never
+enter the index.

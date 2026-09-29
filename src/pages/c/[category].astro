@@ -1,0 +1,37 @@
+---
+import Base from '../../layouts/Base.astro';
+import JobList from '../../components/JobList.astro';
+import { getByFacet, getLatest } from '../../lib/db.js';
+import { CATEGORIES } from '../../lib/format.js';
+
+const { category } = Astro.params;
+const cat = CATEGORIES.find((c) => c.slug === category);
+if (!cat) return Astro.redirect('/404', 404);
+
+const jobs = cat.slug === 'just-posted'
+  ? await getLatest(60)
+  : await getByFacet(cat.facet, 60);
+
+const BLURB = {
+  'just-posted': 'The newest openings on JoBmania, most recent first. Every one was checked against the employer’s own page before it appeared here.',
+  'freshers': 'Roles open to candidates with no prior experience, including off-campus drives and trainee positions.',
+  'experienced': 'Roles asking for a few years behind you rather than a clean slate.',
+  'remote': 'Work-from-home and remote roles hiring across India.',
+  'walk-ins': 'Attend in person — no online application. Check the venue and timing on each listing, and confirm with the employer before you travel.',
+  'internships': 'Internships and apprenticeships, including stipend-paying and pre-placement roles.',
+  'off-campus': 'Off-campus drives open to graduates outside a college placement process.',
+};
+---
+<Base
+  title={`${cat.label} jobs in India — ${jobs.length} live openings | JoBmania`}
+  description={BLURB[cat.slug]}
+  noindex={jobs.length < 3}
+>
+  <JobList
+    heading={`${cat.label} jobs`}
+    sub={BLURB[cat.slug]}
+    jobs={jobs}
+    crumb={cat.label}
+    empty="No live openings in this category right now. The monitor runs every ten minutes, so check back shortly."
+  />
+</Base>

@@ -1,0 +1,52 @@
+---
+import Base from '../layouts/Base.astro';
+import JobList from '../components/JobList.astro';
+import { search, getByFacet, getLatest, getFacets } from '../lib/db.js';
+import { citySlug } from '../lib/format.js';
+
+const q = Astro.url.searchParams.get('q')?.trim() ?? '';
+const city = Astro.url.searchParams.get('city')?.trim() ?? '';
+
+const facets = await getFacets();
+const knownCity = facets.cities.find(([n]) => n.toLowerCase() === city.toLowerCase())?.[0] ?? null;
+
+let jobs;
+if (q) jobs = await search(q, 60);
+else if (knownCity) jobs = await getByFacet({ city: knownCity }, 60);
+else jobs = await getLatest(60);
+
+if (q && knownCity) jobs = jobs.filter((j) => j.city_primary === knownCity);
+
+const heading = q ? `“${q}”${knownCity ? ` in ${knownCity}` : ''}` : knownCity ? `Jobs in ${knownCity}` : 'All live openings';
+const sub = q || knownCity
+  ? 'Results from live openings only. Anything closed or unreachable has already been delisted.'
+  : `Every opening currently live on JoBmania, newest first.`;
+---
+<Base
+  title={`${heading} | JoBmania`}
+  description={sub}
+  noindex={Boolean(q)}
+>
+  <JobList
+    heading={heading}
+    sub={sub}
+    jobs={jobs}
+    crumb="Search"
+    empty={q ? `Nothing live matches “${q}” right now. Try a company name, a role, or a city.` : 'No live openings right now.'}
+  />
+
+  <section class="refine">
+    <h2>Browse by city</h2>
+    <div class="row">
+      {facets.cities.map(([name, n]) => (
+        <a class="chip" href={`/city/${citySlug(name)}`}>{name} · {n}</a>
+      ))}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .refine { padding-block: 48px 0; }
+  .refine h2 { font-size: 20px; font-weight: 800; margin-bottom: 16px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>

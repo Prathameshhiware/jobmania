@@ -1,0 +1,72 @@
+---
+import { timeAgo, daysLeft, experienceLabel, salaryLabel, locationLabel, walkinLabel, TYPE_LABEL } from '../lib/format.js';
+
+const { job, compact = false } = Astro.props;
+
+const exp = experienceLabel(job.exp_min, job.exp_max);
+const pay = salaryLabel(job);
+const where = locationLabel(job);
+const walkin = walkinLabel(job);
+const left = daysLeft(job.valid_through);
+const verified = timeAgo(job.last_verified_at ?? job.posted_at);
+const closingSoon = left != null && left <= 7;
+// built here: nested template literals inside markup break the transform
+const closingLabel = left == null ? null
+  : left <= 0 ? 'closes today'
+  : `${left} day${left === 1 ? '' : 's'} left`;
+---
+<a class={`job glass${compact ? ' compact' : ''}`} href={`/job/${job.slug}`}>
+  <div class="top">
+    <span class="co">{job.company_name}</span>
+    <span class="sep"></span>
+    {closingSoon
+      ? <span class="status warn"><span class="dot"></span>{closingLabel}</span>
+      : <span class="status"><span class="dot"></span>Verified {verified}</span>}
+  </div>
+
+  <h3>{job.title}</h3>
+
+  <div class="tags">
+    <span class="chip">{TYPE_LABEL[job.hiring_type] ?? job.hiring_type}</span>
+    {exp && <span class="chip">{exp}</span>}
+    {job.qualification && !compact && <span class="chip">{job.qualification}</span>}
+    {walkin && <span class="chip">{walkin}</span>}
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="foot">
+    <span class="where">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      {where ?? 'Location not stated'}
+    </span>
+    {pay
+      ? <span class="pay">{pay}</span>
+      : <span class="pay none">Pay not stated</span>}
+    <span class="btn">View</span>
+  </div>
+</a>
+
+<style>
+  .job {
+    background: var(--glass-strong); border-radius: 26px; padding: 28px;
+    backdrop-filter: blur(32px) saturate(160%); -webkit-backdrop-filter: blur(32px) saturate(160%);
+    border: 1px solid var(--glass-edge);
+    box-shadow: inset 0 1px 0 var(--glass-top), 0 22px 50px -20px var(--shadow);
+    text-decoration: none; color: var(--ink);
+    display: flex; flex-direction: column;
+  }
+  .job.compact { padding: 22px; border-radius: 22px; }
+  .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .co { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .sep { width: 3px; height: 3px; border-radius: 999px; background: var(--ink-4); }
+  h3 { font-size: clamp(19px, 2.1vw, 23px); font-weight: 800; line-height: 1.18; margin-bottom: 20px; }
+  .compact h3 { font-size: 17px; margin-bottom: 16px; }
+  .tags { display: flex; gap: 9px; flex-wrap: wrap; margin-bottom: 22px; }
+  .rule { height: 1px; background: var(--hairline); margin-bottom: 20px; }
+  .foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: auto; }
+  .where { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; color: var(--ink-2); flex: 1 1 auto; }
+  .pay { font-size: 14px; font-weight: 600; }
+  .pay.none { font-weight: 400; color: var(--ink-4); }
+  .foot .btn { min-height: 44px; padding-inline: 22px; flex: none; }
+</style>
