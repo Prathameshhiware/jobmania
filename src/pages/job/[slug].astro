@@ -165,7 +165,7 @@ const deadlineLabel = left == null ? null
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>
           <div>
             <h2>This opening is closed</h2>
-            <p>{closedReason}{closedOn ? ` It stopped accepting applications on ${closedOn}.` : ''} We keep the page so you know what happened rather than hitting a dead end — but do not travel or apply on the strength of it.</p>
+            <p>{closedReason}{closedOn ? ` It stopped accepting applications on ${closedOn}.` : ''} We keep the page so you know what happened rather than hitting a dead end, but do not travel or apply on the strength of it.</p>
           </div>
         </div>
       )}
@@ -233,7 +233,7 @@ const deadlineLabel = left == null ? null
         {!pay && (
           <details open>
             <summary>Why is no pay shown?</summary>
-            <p>Because {job.company_name} did not state it in this listing. We publish pay only when the employer does and never estimate a range, so a blank field means the information does not exist upstream — not that we failed to find it.</p>
+            <p>Because {job.company_name} did not state it in this listing. We publish pay only when the employer does and never estimate a range, so a blank field means the information does not exist upstream, not that we failed to find it.</p>
           </details>
         )}
         <details>
@@ -293,7 +293,7 @@ const deadlineLabel = left == null ? null
                   </a>
                   <p class="note">Opens {job.company_name}’s official application page. We never collect your application.</p>
                 </>
-              : <p class="note">This listing has no online application link — it is a walk-in. Check the venue and timing above.</p>}
+              : <p class="note">This listing has no online application link. It is a walk-in. Check the venue and timing above.</p>}
           </>
         )}
       </div>

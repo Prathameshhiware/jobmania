@@ -17,7 +17,10 @@ export const KINDS = {
     one: 'Blog',
     schema: 'BlogPosting',
     blurb:
-      'Shorter pieces — what changed on the site, what we are seeing across the openings we track, and how this was built.',
+      'Shorter pieces: what changed on the site, what we are seeing across the openings we track, and how this was built.',
+    seoTitle: 'Job Market Blog India: Hiring News for Freshers',
+    metaDescription:
+      'Job market blog for India: fresher hiring news, walk-in updates and what we are seeing across the openings we track and verify every day.',
   },
   'thought-leadership': {
     slug: 'thought-leadership',
@@ -26,6 +29,9 @@ export const KINDS = {
     schema: 'Article',
     blurb:
       'Arguments about how hiring in India actually works, and how it should. One reading of the evidence, put plainly enough to disagree with.',
+    seoTitle: 'Indian Job Market Analysis & Hiring Opinion',
+    metaDescription:
+      'Analysis of the Indian job market: why hiring works the way it does, what the data on fresher and entry-level recruitment shows, and what should change.',
   },
   playbook: {
     slug: 'playbook',
@@ -34,6 +40,9 @@ export const KINDS = {
     schema: 'Article',
     blurb:
       'Practical guidance for applying in India, written to be acted on. Every claim that matters carries a source you can check.',
+    seoTitle: 'Job Search Playbook India: Guides for Freshers',
+    metaDescription:
+      'Practical job search guides for freshers in India: how to apply, how to prepare for walk-in interviews, and how to spot a fake job posting before it costs you.',
   },
 };
 

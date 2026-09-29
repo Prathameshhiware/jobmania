@@ -18,31 +18,31 @@ const n = (v) => Number(v ?? 0).toLocaleString('en-IN');
 /* ------------------------------------------------------------- titles --- */
 
 export const titles = {
-  home: (c) => `${SITE_NAME} — ${n(c)} Verified Job Openings in India | Freshers, Walk-ins, Remote`,
+  home: (c) => `${SITE_NAME}: ${n(c)} Verified Job Openings in India | Freshers, Walk-ins, Remote`,
 
-  city: (city, c) => `Jobs in ${city} — ${n(c)} Verified Openings | ${SITE_NAME}`,
+  city: (city, c) => `Jobs in ${city}: ${n(c)} Verified Openings | ${SITE_NAME}`,
 
   // `phrase` is already a full noun phrase ("Walk In Interviews"), so nothing
   // is appended to it.
-  category: (phrase, c) => `${phrase} in India — ${n(c)} Live Openings | ${SITE_NAME}`,
+  category: (phrase, c) => `${phrase} in India: ${n(c)} Live Openings | ${SITE_NAME}`,
 
   // The highest-intent pattern in this market: city + type.
-  cityCategory: (city, phrase, c) => `${phrase} in ${city} — ${n(c)} Openings Today | ${SITE_NAME}`,
+  cityCategory: (city, phrase, c) => `${phrase} in ${city}: ${n(c)} Openings Today | ${SITE_NAME}`,
 
-  company: (name, c) => `${name} Careers — ${n(c)} Open Roles in India | ${SITE_NAME}`,
+  company: (name, c) => `${name} Careers: ${n(c)} Open Roles in India | ${SITE_NAME}`,
 
   job: (title, company, city) =>
-    `${title} at ${company}${city ? ` — ${city}` : ''} | ${SITE_NAME}`,
+    `${title} at ${company}${city ? `, ${city}` : ''} | ${SITE_NAME}`,
 
-  jobClosed: (title, company) => `${title} at ${company} — Closed | ${SITE_NAME}`,
+  jobClosed: (title, company) => `${title} at ${company}, Closed | ${SITE_NAME}`,
 
   search: (q, city) =>
-    q ? `${q}${city ? ` in ${city}` : ''} Jobs — Search Results | ${SITE_NAME}`
+    q ? `${q}${city ? ` in ${city}` : ''} Jobs, Search Results | ${SITE_NAME}`
       : `All Job Openings in India | ${SITE_NAME}`,
 
-  allJobs: (c) => `All Job Openings in India — ${n(c)} Live Vacancies Today | ${SITE_NAME}`,
+  allJobs: (c) => `All Job Openings in India: ${n(c)} Live Vacancies Today | ${SITE_NAME}`,
 
-  cityOnly: (city, c) => `Jobs in ${city} — ${n(c)} Verified Openings Hiring Now | ${SITE_NAME}`,
+  cityOnly: (city, c) => `Jobs in ${city}: ${n(c)} Verified Openings Hiring Now | ${SITE_NAME}`,
 };
 
 /* --------------------------------------------------------- descriptions --- */
@@ -51,13 +51,13 @@ export const titles = {
 
 export const descriptions = {
   home: (c, today) =>
-    `Browse ${n(c)} verified job openings across India — freshers, walk-in interviews, ` +
+    `Browse ${n(c)} verified job openings across India covering freshers, walk-in interviews, ` +
     `off-campus drives, internships and work-from-home roles. Every listing is re-checked ` +
     `daily against the employer's own careers page${today ? `, with ${n(today)} added today` : ''}. ` +
     `Closed jobs are removed, never left up.`,
 
   city: (city, c, types) =>
-    `${n(c)} verified job openings in ${city}${types ? ` — ${types}` : ''}. ` +
+    `${n(c)} verified job openings in ${city}${types ? `, ${types}` : ''}. ` +
     `Each apply link is tested daily and closed roles are removed within 24 hours, ` +
     `so every listing you see in ${city} is genuinely still open.`,
 

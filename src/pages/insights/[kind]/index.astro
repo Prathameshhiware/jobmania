@@ -19,8 +19,8 @@ const origin = (Astro.site?.origin ?? 'https://jobmania.dpdns.org').replace(/\/$
 const others = KIND_ORDER.filter((k) => k !== kind);
 ---
 <Base
-  title={`${meta.label} | JoBmania Insights`}
-  description={meta.blurb}
+  title={`${meta.seoTitle ?? meta.label} | JoBmania`}
+  description={meta.metaDescription ?? meta.blurb}
   noindex={items.length === 0}
   maxAge={900}
   schema={[
