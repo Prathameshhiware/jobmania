@@ -16,6 +16,9 @@
     "expire": "node src/expire.js",
     "stats": "node src/stats.js"
   },
+  "overrides": {
+    "htmlparser2": "^9.1.0"
+  },
   "dependencies": {
     "@astrojs/vercel": "^11.0.11",
     "@supabase/supabase-js": "^2.45.0",

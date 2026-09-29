@@ -6,6 +6,10 @@
 // Sanitised twice on purpose — once on ingest so the database holds clean HTML,
 // and again on render so rows stored before this existed are still safe.
 
+// htmlparser2 is pinned to ^9 in package.json "overrides". sanitize-html is
+// CommonJS and require()s it; from v10 it is ESM-only, which throws
+// ERR_REQUIRE_ESM on Vercel's Node runtime and 500s every job page. The dev
+// server hides that because Vite transforms the import instead of requiring it.
 import sanitizeHtml from 'sanitize-html';
 
 const OPTIONS = {
@@ -20,7 +24,9 @@ const OPTIONS = {
     'a',
   ],
   allowedAttributes: {
-    a: ['href', 'title'],
+    // rel and target are set by transformTags below, but allowedAttributes is
+    // applied afterwards — leaving them out here silently discarded both.
+    a: ['href', 'title', 'rel', 'target'],
     td: ['colspan', 'rowspan'],
     th: ['colspan', 'rowspan'],
   },
