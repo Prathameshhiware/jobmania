@@ -1,0 +1,113 @@
+---
+// The Insights landing page. Four kinds of writing, each at its own path.
+//
+// Empty until something is written. An empty state that says so plainly is
+// better than filler: this site's whole claim is that it does not publish
+// things it cannot stand behind, and a section padded to look busy would be
+// the first place that claim broke.
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { KINDS, KIND_ORDER, articlePath, fmtDate, publish } from '../../lib/insights.js';
+import { breadcrumbSchema, collectionPageSchema } from '../../lib/seo.js';
+
+const all = publish(await getCollection('insights'));
+const latest = all.slice(0, 6);
+const countOf = (k) => all.filter((e) => e.data.kind === k).length;
+
+const origin = (Astro.site?.origin ?? 'https://jobmania.dpdns.org').replace(/\/$/, '');
+const description =
+  'Reports measured from our own hiring data, a playbook for applying in India, and arguments about how hiring here actually works.';
+---
+<Base
+  title="Insights — hiring reports, playbook and perspectives | JoBmania"
+  description={description}
+  maxAge={900}
+  schema={[
+    collectionPageSchema(origin, { path: '/insights', name: 'JoBmania Insights', description }),
+    breadcrumbSchema(origin, [{ name: 'Home', path: '/' }, { name: 'Insights' }]),
+  ]}
+>
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a>›<span>Insights</span>
+  </nav>
+
+  <header class="lead">
+    <h1>Insights</h1>
+    <p class="sub">
+      We watch the Indian job market every five minutes and remove what has closed.
+      This is what that turns up — measured from our own data, and argued in the open.
+    </p>
+  </header>
+
+  <div class="kinds">
+    {KIND_ORDER.map((k) => (
+      <a class="kind-tile glass" href={`/insights/${KINDS[k].slug}`}>
+        <div class="kt-top">
+          <h2>{KINDS[k].label}</h2>
+          <span class="n">{countOf(k)}</span>
+        </div>
+        <p>{KINDS[k].blurb}</p>
+      </a>
+    ))}
+  </div>
+
+  {latest.length > 0 ? (
+    <section class="latest">
+      <h2>Latest</h2>
+      <div class="grid">
+        {latest.map((e) => (
+          <a class="card glass" href={articlePath(e)}>
+            <span class="tag">{KINDS[e.data.kind].one}</span>
+            <h3>{e.data.title}</h3>
+            <p>{e.data.dek}</p>
+            <time datetime={e.data.published.toISOString()}>{fmtDate(e.data.published)}</time>
+          </a>
+        ))}
+      </div>
+    </section>
+  ) : (
+    <section class="empty glass">
+      <h2>Nothing published yet</h2>
+      <p>
+        The section is built and the first pieces are being written. Rather than fill it
+        with placeholder articles, it stays empty until there is something here worth
+        your time — the same rule that governs every job listing on this site.
+      </p>
+      <a class="btn" href="/jobs">Browse live openings instead</a>
+    </section>
+  )}
+</Base>
+
+<style>
+  .crumbs { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--ink-3); padding-block: 22px 0; }
+  .crumbs a { color: var(--ink-2); text-decoration: none; font-weight: 500; min-height: 44px; display: inline-flex; align-items: center; }
+
+  .lead { padding-block: 40px 30px; max-width: 700px; }
+  .lead h1 { font-size: clamp(32px, 5.4vw, 52px); font-weight: 800; line-height: 1.06; letter-spacing: -0.05em; }
+  .sub { margin: 18px 0 0; font-size: 17px; font-weight: 500; line-height: 1.65; color: var(--ink-2); }
+
+  .kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+  .kind-tile { border-radius: 24px; padding: 26px; text-decoration: none; color: var(--ink); display: block; }
+  .kt-top { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .kind-tile h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.04em; }
+  .kt-top .n { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+  .kind-tile p { margin: 0; font-size: 13.5px; line-height: 1.65; color: var(--ink-3); }
+
+  .latest { padding-block: 60px 0; }
+  .latest h2 { font-size: clamp(22px, 3vw, 28px); font-weight: 800; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+  .card { border-radius: 22px; padding: 26px; text-decoration: none; color: var(--ink); display: flex; flex-direction: column; }
+  .tag { align-self: flex-start; display: inline-flex; align-items: center; height: 24px; padding-inline: 11px; border-radius: 999px; background: var(--glass-chip); border: 1px solid var(--glass-edge); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
+  .card h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; margin: 15px 0 9px; line-height: 1.25; }
+  .card p { margin: 0 0 16px; font-size: 13.5px; line-height: 1.6; color: var(--ink-3); }
+  .card time { margin-top: auto; font-size: 12px; color: var(--ink-4); }
+
+  .empty { border-radius: 24px; padding: 44px clamp(24px, 4vw, 40px); margin-top: 40px; max-width: 640px; }
+  .empty h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 12px; }
+  .empty p { margin: 0 0 22px; font-size: 15px; line-height: 1.7; color: var(--ink-2); }
+
+  @media (max-width: 620px) {
+    .kinds { gap: 12px; }
+    .kind-tile { padding: 20px; border-radius: 20px; }
+  }
+</style>

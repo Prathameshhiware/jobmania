@@ -1,0 +1,9 @@
+Articles go here as .md files, one per piece.
+
+Frontmatter contract is defined and commented in src/content.config.ts.
+Required: kind (report|playbook|perspective|blog), title, dek, published.
+A `kind: report` is refused at build time unless it carries `dataAsOf` —
+the date its numbers were measured.
+
+The filename becomes the slug:
+  hiring-report-october-2026.md  ->  /insights/reports/hiring-report-october-2026

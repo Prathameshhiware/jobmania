@@ -2,14 +2,20 @@
 // delisted, which is the whole point — a sitemap full of dead jobs is how a
 // site teaches Google to distrust it.
 
+import { getCollection } from 'astro:content';
 import { getAllLive, getFacets } from '../lib/db.js';
 import { citySlug, CATEGORIES } from '../lib/format.js';
+import { KINDS, KIND_ORDER, articlePath, publish } from '../lib/insights.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export async function GET({ site }) {
   const origin = (site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
-  const [jobs, facets] = await Promise.all([getAllLive(), getFacets()]);
+  const [jobs, facets, articles] = await Promise.all([
+    getAllLive(),
+    getFacets(),
+    getCollection('insights').then(publish),
+  ]);
 
   const url = (loc, lastmod, changefreq, priority) =>
     `  <url>\n    <loc>${esc(origin + loc)}</loc>\n` +
@@ -45,6 +51,16 @@ export async function GET({ site }) {
     // thin company pages are left out rather than published as near-empty pages
     ...facets.companies.filter((c) => c.n >= 2).map((c) => url(`/company/${c.slug}`, new Date(), 'weekly', '0.6')),
     ...jobs.map((j) => url(`/job/${j.slug}`, j.updated_at ?? j.posted_at, 'daily', '0.7')),
+
+    // Insights. The landing page always ships; a kind index only once it holds
+    // something, so an empty section never enters the index as a thin page.
+    url('/insights', new Date(), 'weekly', '0.7'),
+    ...KIND_ORDER
+      .filter((k) => articles.some((e) => e.data.kind === k))
+      .map((k) => url(`/insights/${KINDS[k].slug}`, new Date(), 'weekly', '0.6')),
+    ...articles.map((e) =>
+      url(articlePath(e), e.data.updated ?? e.data.published, 'monthly', '0.7')
+    ),
   ];
 
   return new Response(

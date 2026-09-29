@@ -7,6 +7,7 @@ const here = Astro.url.pathname;
     <a class="brand" href="/">Jo<b>B</b>mania</a>
     <span class="spacer"></span>
     <a class="plain" href="/jobs">All jobs</a>
+    <a class="plain" href="/insights">Insights</a>
     <a class="btn" href="/c/walk-ins">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
       Walk-ins
@@ -38,6 +39,7 @@ const here = Astro.url.pathname;
       </div>
       <div class="menu-foot">
         <a class="menu-all" href="/jobs" aria-current={here === '/jobs' ? 'page' : undefined}>All jobs</a>
+        <a class="menu-all" href="/insights" aria-current={here.startsWith('/insights') ? 'page' : undefined}>Insights</a>
         <a class="btn" href="/c/walk-ins">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
           Walk-ins
