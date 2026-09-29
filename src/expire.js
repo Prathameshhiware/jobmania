@@ -14,12 +14,15 @@ const now = new Date().toISOString();
 
 console.log(`\nJoBmania expiry pass — ${now.slice(0, 19).replace('T', ' ')}\n`);
 
-// 1. deadline passed
+// 1. deadline passed — for anything not already in a terminal state.
+//    needs_review is included on purpose: a walk-in whose drive has finished is
+//    never going to be publishable, and leaving it in the queue buries the rows
+//    a human could actually act on.
 const { data: lapsed, error: e1 } = await db
   .from('jobs')
-  .update({ status: 'expired', review_reason: 'valid_through passed' })
-  .eq('status', 'live').lt('valid_through', now)
-  .select('id');
+  .update({ status: 'expired', review_reason: 'deadline passed' })
+  .in('status', ['live', 'needs_review']).lt('valid_through', now)
+  .select('id, status');
 if (e1) { console.error(e1.message); process.exit(1); }
 console.log(`expired by deadline: ${lapsed?.length ?? 0}`);
 
