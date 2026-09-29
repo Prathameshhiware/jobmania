@@ -165,9 +165,12 @@ export function extractJob(post, categoryNames = []) {
     posted_at: postedAt,
     valid_through: walkin.end ? new Date(`${walkin.end}T23:59:59Z`).toISOString() : ttl(postedAt),
 
-    // Nothing goes live until the apply link has been resolved and checked.
+    // Nothing goes live until it has a route a candidate can act on: a checked
+    // apply link, or a walk-in venue and date. ingest.js decides.
     status: 'needs_review',
-    review_reason: !applyUrl ? 'no-apply-link' : flags.length ? 'scam-flags' : 'unresolved-apply-url',
+    review_reason: !applyUrl
+      ? (walkin.venue && walkin.start ? 'walk-in, no online application' : 'no apply link or venue')
+      : flags.length ? 'scam-flags' : 'unresolved-apply-url',
     scam_flags: flags.length ? flags : null,
 
     apply_url: applyUrl,

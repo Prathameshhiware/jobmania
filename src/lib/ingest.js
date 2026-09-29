@@ -39,6 +39,20 @@ export async function ingestPosts(posts, categories, { resolve = true, log = con
       continue;
     }
 
+    // A walk-in has no online application by design — its route is the venue
+    // and the date. Publish it on that, the same as a URL-based listing.
+    const walkinRoute = row.hiring_type === 'walk-in' && row.walkin_venue && row.walkin_start;
+
+    if (!row.apply_url && walkinRoute) {
+      if (row.scam_flags?.length) {
+        row.review_reason = `flagged: ${row.scam_flags.join(', ')}`;
+        stats.flagged++;
+      } else {
+        row.status = 'live';
+        row.review_reason = null;
+      }
+    }
+
     if (resolve && row.apply_url) {
       const ats = identifyAts(row.apply_url);
       const canonical = ats ? await fetchCanonical(row.apply_url) : null;

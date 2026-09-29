@@ -96,10 +96,20 @@ alter table public.jobs
   ) stored;
 create index if not exists jobs_search_idx on public.jobs using gin (search);
 
--- a row may only be live if it has an expiry and an apply route
+-- A row may only be live if it has an expiry AND a route the candidate can act
+-- on. That route is an apply URL for an online role, or a venue and a date for
+-- a walk-in — requiring a URL for a walk-in would gate out the entire category,
+-- since a walk-in by definition has no online application.
 alter table public.jobs drop constraint if exists jobs_live_requires_expiry;
 alter table public.jobs add constraint jobs_live_requires_expiry
-  check (status <> 'live' or (valid_through is not null and apply_url is not null));
+  check (
+    status <> 'live' or (
+      valid_through is not null and (
+        apply_url is not null
+        or (walkin_venue is not null and walkin_start is not null)
+      )
+    )
+  );
 
 -- ------------------------------------------------- per-source poll cursor
 create table if not exists public.source_state (
