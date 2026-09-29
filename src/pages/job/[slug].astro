@@ -7,6 +7,7 @@ import {
   walkinLabel, citySlug, TYPE_LABEL,
 } from '../../lib/format.js';
 import { titles, descriptions, breadcrumbSchema, faqSchema, clean } from '../../lib/seo.js';
+import { sanitizeJobHtml } from '../../lib/sanitize.js';
 
 const { slug } = Astro.params;
 const job = await getJobBySlug(slug);
@@ -30,6 +31,10 @@ const [similar, sameCompany, alternatives] = await Promise.all([
   closed ? getAlternatives(job, 3) : Promise.resolve([]),
 ]);
 const others = sameCompany.filter((j) => j.slug !== job.slug && j.status === 'live');
+
+// Third-party HTML rendered with set:html. Sanitised again here so rows stored
+// before the ingest-side sanitiser existed are still safe to render.
+const descriptionHtml = sanitizeJobHtml(job.description_html);
 
 const exp = experienceLabel(job.exp_min, job.exp_max);
 const pay = salaryLabel(job);
@@ -214,11 +219,11 @@ const deadlineLabel = left == null ? null
         <p class="policy">We publish pay only when the employer states it, and never estimate a range.</p>
       </section>
 
-      {job.description_html && (
+      {descriptionHtml && (
         <section class="card glass">
           <h2 class="sec">About the role</h2>
           <p class="sec-note">Published by {job.company_name} on their own careers site.</p>
-          <div class="jd" set:html={job.description_html} />
+          <div class="jd" set:html={descriptionHtml} />
         </section>
       )}
 

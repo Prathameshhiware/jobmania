@@ -98,14 +98,26 @@ const year = new Date().getFullYear();
   .foot-end { margin-top: 18px; display: flex; gap: 32px 48px; flex-wrap: wrap; align-items: flex-start; }
   .foot-id { flex: 1 1 250px; max-width: 320px; }
   .foot-id p { margin: 12px 0 0; font-size: 14px; font-weight: 500; color: var(--ink-2); }
-  .brand { font-family: var(--display); font-size: 23px; font-weight: 800; letter-spacing: -0.05em; color: var(--ink); text-decoration: none; }
+  .brand { font-family: var(--display); font-size: 23px; font-weight: 800; letter-spacing: -0.05em; color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
   .brand b { color: var(--accent); }
   .foot-links { flex: 2 1 420px; display: flex; flex-direction: column; gap: 16px; }
   .link-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
   .link-row h4 { margin: 0; flex: 0 0 74px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); }
-  .link-row a { font-size: 14px; color: var(--ink-2); text-decoration: none; }
+  /* 44px touch target; the separator sits outside it so spacing is unchanged */
+  .link-row a {
+    font-size: 14px; color: var(--ink-2); text-decoration: none;
+    display: inline-flex; align-items: center; min-height: 44px;
+  }
   .link-row a::after { content: "·"; margin-left: 10px; color: var(--ink-4); }
   .link-row a:last-child::after { content: ""; }
+
+  @media (max-width: 720px) {
+    footer { padding-block: 48px 32px; }
+    .link-row { gap: 6px 12px; }
+    .link-row h4 { flex: 0 0 100%; margin-bottom: 2px; }
+    .legal { gap: 10px 16px; }
+    .legal .spacer { display: none; }
+  }
 
   .legal { padding-top: 20px; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--ink-3); }
   .legal .spacer { flex: 1 1 auto; }

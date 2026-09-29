@@ -150,9 +150,29 @@ export async function getAllLive() {
   return data ?? [];
 }
 
+/**
+ * PostgREST builds `.or()` from a filter STRING, so raw user input landing in
+ * it is an injection vector: `(`, `)`, `,` and `.` are all syntax there, and a
+ * crafted query could append conditions of its own. RLS would still confine the
+ * result to publishable rows, but a filter must never be assembled from
+ * unvalidated input.
+ *
+ * So the term is reduced to an allowlist — letters, digits, spaces and the few
+ * punctuation marks that appear in real company and role names — and capped in
+ * length. Every PostgREST metacharacter is outside that set.
+ */
+export function sanitizeSearchTerm(q) {
+  return String(q ?? '')
+    .normalize('NFKC')
+    .replace(/[^\p{L}\p{N} '&+/-]/gu, ' ')   // allowlist, not blocklist
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+}
+
 export async function search(q, limit = 60) {
-  if (!q) return [];
-  const term = q.trim().replace(/[%,]/g, ' ');
+  const term = sanitizeSearchTerm(q);
+  if (term.length < 2) return [];
   const { data } = await live()
     .or(`title.ilike.%${term}%,company_name.ilike.%${term}%,city_primary.ilike.%${term}%`)
     .order('posted_at', { ascending: false }).limit(limit);

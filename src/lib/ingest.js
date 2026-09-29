@@ -8,6 +8,7 @@
 import { db } from './supabase.js';
 import { extractJob } from './extract.js';
 import { fetchCanonical, checkLink, identifyAts } from './ats.js';
+import { sanitizeJobHtml } from './sanitize.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -58,7 +59,9 @@ export async function ingestPosts(posts, categories, { resolve = true, log = con
       const canonical = ats ? await fetchCanonical(row.apply_url) : null;
       if (canonical) {
         row.canonical_url = canonical.canonical_url ?? row.apply_url;
-        row.description_html = canonical.description_html;
+        // Third-party HTML. Cleaned before storage so the database never holds
+        // a script tag waiting to be rendered.
+        row.description_html = sanitizeJobHtml(canonical.description_html);
         row.description_source = canonical.description_source;
       }
 
