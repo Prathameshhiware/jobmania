@@ -142,6 +142,41 @@ export async function getFacets() {
   };
 }
 
+/**
+ * Roles that have closed, most recently first. This is the evidence behind the
+ * freshness claim: anyone can say they remove dead listings, and this is the
+ * page that shows it happening. Carries `status` and `review_reason` so a card
+ * can say *why* each one went — finished drive, passed deadline, or an apply
+ * link that stopped responding.
+ */
+export async function getRecentlyClosed(limit = 40) {
+  const { data } = await sb
+    .from('jobs')
+    .select(`${CARD}, status, review_reason, last_checked_at`)
+    .in('status', ['expired', 'dead_link'])
+    .order('valid_through', { ascending: false })
+    .limit(limit);
+  return data ?? [];
+}
+
+/**
+ * Real totals across every closed row, not a tally of whichever page happens
+ * to be on screen. A figure beside the word "total" has to be one.
+ */
+export async function closedBreakdown() {
+  const n = async (f) => {
+    let q = sb.from('jobs').select('id', { count: 'exact', head: true });
+    const { count } = await f(q);
+    return count ?? 0;
+  };
+  const [total, deadLinks, finishedDrives] = await Promise.all([
+    n((q) => q.in('status', ['expired', 'dead_link'])),
+    n((q) => q.eq('status', 'dead_link')),
+    n((q) => q.eq('status', 'expired').eq('hiring_type', 'walk-in')),
+  ]);
+  return { total, deadLinks, finishedDrives, deadlinePassed: total - deadLinks - finishedDrives };
+}
+
 /** Every live slug, for the sitemap. */
 export async function getAllLive() {
   const { data } = await sb.from('jobs')
