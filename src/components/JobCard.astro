@@ -40,9 +40,10 @@ const closingLabel = left == null ? null
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
       {where ?? 'Location not stated'}
     </span>
-    {pay
-      ? <span class="pay">{pay}</span>
-      : <span class="pay none">Pay not stated</span>}
+    {/* Shown only when the employer stated a figure. On the card an absent pay
+        line is just noise; the detail page says "not stated" explicitly, where
+        the reader is actually asking. */}
+    {pay && <span class="pay">{pay}</span>}
     <span class="btn">View</span>
   </div>
 </a>
@@ -67,6 +68,5 @@ const closingLabel = left == null ? null
   .foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: auto; }
   .where { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; color: var(--ink-2); flex: 1 1 auto; }
   .pay { font-size: 14px; font-weight: 600; }
-  .pay.none { font-weight: 400; color: var(--ink-4); }
   .foot .btn { min-height: 44px; padding-inline: 22px; flex: none; }
 </style>
