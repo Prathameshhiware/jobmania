@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="JoBmania">
+  <rect width="64" height="64" rx="15" fill="#262338"/>
+  <text x="32" y="44"
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif"
+        font-size="31" font-weight="800" letter-spacing="-2"
+        text-anchor="middle" fill="#FFFFFF">J<tspan fill="#ABB2F5">M</tspan></text>
+</svg>

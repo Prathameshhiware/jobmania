@@ -1,0 +1,15 @@
+{
+  "name": "JoBmania",
+  "short_name": "JoBmania",
+  "description": "Job openings that are still actually open. Every listing re-checked daily against the employer's own careers page.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#C3BEE4",
+  "theme_color": "#262338",
+  "lang": "en-IN",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

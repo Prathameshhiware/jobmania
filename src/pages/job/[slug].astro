@@ -6,6 +6,7 @@ import {
   timeAgo, daysLeft, experienceLabel, salaryLabel, locationLabel,
   walkinLabel, citySlug, TYPE_LABEL,
 } from '../../lib/format.js';
+import { titles, descriptions, breadcrumbSchema, faqSchema, clean } from '../../lib/seo.js';
 
 const { slug } = Astro.params;
 const job = await getJobBySlug(slug);
@@ -75,38 +76,73 @@ const jsonLd = {
   } : undefined,
 };
 
-const crumbs = {
-  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: new URL('/', Astro.site).href },
-    job.city_primary && { '@type': 'ListItem', position: 2, name: job.city_primary, item: new URL(`/city/${citySlug(job.city_primary)}`, Astro.site).href },
-    { '@type': 'ListItem', position: 3, name: job.company_name, item: new URL(`/company/${job.company_slug}`, Astro.site).href },
-  ].filter(Boolean),
-};
+const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
 
-const clean = (o) => JSON.parse(JSON.stringify(o));
+const crumbs = breadcrumbSchema(origin, [
+  { name: 'Home', path: '/' },
+  ...(job.city_primary ? [{ name: job.city_primary, path: `/city/${citySlug(job.city_primary)}` }] : []),
+  { name: job.company_name, path: `/company/${job.company_slug}` },
+  { name: job.title },
+]);
+
+// Mirrors the visible "About this listing" section exactly — Google requires
+// FAQ markup to match what a reader can actually see on the page.
+const jobFaq = faqSchema([
+  !pay && {
+    q: `Why is no salary shown for this ${job.company_name} role?`,
+    a: `Because ${job.company_name} did not state one in this listing. JoBmania publishes pay ` +
+       `only when the employer does and never estimates a range, so a blank field means the ` +
+       `information does not exist upstream rather than that it was not found.`,
+  },
+  {
+    q: 'Is this opening still accepting applications?',
+    a: closed
+      ? `No. ${closedReason}${closedOn ? ` It stopped accepting applications on ${closedOn}.` : ''}`
+      : `Yes. The application link was last confirmed working ${verifiedAgo}, and every listing ` +
+        `is re-tested daily. If it closes or the link stops responding, this page is delisted ` +
+        `within 24 hours.`,
+  },
+  !job.description_html && !closed && {
+    q: 'Where is the full job description?',
+    a: `${job.company_name} does not publish this role through a feed that can be read ` +
+       `automatically, so JoBmania holds the structured facts but not their full write-up. ` +
+       `The application link goes to their official page, which carries the complete description.`,
+  },
+  walkin && {
+    q: `When and where is the ${job.company_name} walk-in?`,
+    a: `${walkin}${job.walkin_time ? `, ${job.walkin_time}` : ''}` +
+       `${job.walkin_venue ? ` at ${job.walkin_venue}` : ''}. Confirm with the employer before ` +
+       `travelling, as drives can be cancelled at short notice.`,
+  },
+].filter(Boolean));
 
 // Built here rather than inline: nested template literals inside markup
 // expressions do not survive the Astro/esbuild transform.
 const verifiedAgo = timeAgo(job.last_verified_at ?? job.posted_at);
-const pageTitle = closed
-  ? `${job.title} at ${job.company_name} — closed | JoBmania`
-  : `${job.title} at ${job.company_name}${where ? ` — ${where}` : ''} | JoBmania`;
-const pageDesc = closed
-  ? `${closedReason} This ${job.company_name} opening is no longer accepting applications. See what is currently open${where ? ` in ${where}` : ''}.`
-  : `${factSentence} Apply on ${job.company_name}'s official page. Verified ${verifiedAgo}.`;
 const closedOn = fmtDate(job.valid_through);
+const pageTitle = closed
+  ? titles.jobClosed(job.title, job.company_name)
+  : titles.job(job.title, job.company_name, where);
+const pageDesc = closed
+  ? descriptions.jobClosed(closedReason, job.company_name, where)
+  : descriptions.job(factSentence, job.company_name, verifiedAgo);
 const deadlineLabel = left == null ? null
   : left <= 0 ? 'Closes today'
   : `${left} day${left === 1 ? '' : 's'} left to apply`;
 ---
-<Base title={pageTitle} description={pageDesc} maxAge={300} noindex={closed}>
-  <Fragment slot="head">
-    {/* No JobPosting on a closed role: describing a finished opening as open
-        is a structured-data violation, and the page is noindex anyway. */}
-    {!closed && <script type="application/ld+json" set:html={JSON.stringify(clean(jsonLd))} />}
-    <script type="application/ld+json" set:html={JSON.stringify(clean(crumbs))} />
-  </Fragment>
+<Base
+  title={pageTitle}
+  description={pageDesc}
+  maxAge={300}
+  noindex={closed}
+  schema={[
+    /* No JobPosting on a closed role: describing a finished opening as open is
+       a structured-data violation, and the page is noindex anyway. */
+    closed ? null : jsonLd,
+    crumbs,
+    jobFaq,
+  ].filter(Boolean)}
+>
 
   <nav class="crumbs" aria-label="Breadcrumb">
     <a href="/">Home</a>›

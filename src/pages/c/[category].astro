@@ -2,15 +2,20 @@
 import Base from '../../layouts/Base.astro';
 import JobList from '../../components/JobList.astro';
 import { getByFacet, getLatest } from '../../lib/db.js';
-import { CATEGORIES } from '../../lib/format.js';
+import { CATEGORIES, citySlug } from '../../lib/format.js';
+import { getFacets } from '../../lib/db.js';
+import {
+  titles, descriptions, breadcrumbSchema, itemListSchema, collectionPageSchema,
+} from '../../lib/seo.js';
 
 const { category } = Astro.params;
 const cat = CATEGORIES.find((c) => c.slug === category);
 if (!cat) return Astro.redirect('/404', 404);
 
-const jobs = cat.slug === 'just-posted'
-  ? await getLatest(60)
-  : await getByFacet(cat.facet, 60);
+const [jobs, facets] = await Promise.all([
+  cat.slug === 'just-posted' ? getLatest(60) : getByFacet(cat.facet, 60),
+  getFacets(),
+]);
 
 const BLURB = {
   'just-posted': 'The newest openings on JoBmania, most recent first. Every one was checked against the employer’s own page before it appeared here.',
@@ -21,17 +26,42 @@ const BLURB = {
   'internships': 'Internships and apprenticeships, including stipend-paying and pre-placement roles.',
   'off-campus': 'Off-campus drives open to graduates outside a college placement process.',
 };
+
+const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
+const path = `/c/${cat.slug}`;
+const heading = `${cat.label} jobs`;
+const desc = descriptions.category(cat.phrase, BLURB[cat.slug], jobs.length);
 ---
 <Base
-  title={`${cat.label} jobs in India — ${jobs.length} live openings | JoBmania`}
-  description={BLURB[cat.slug]}
+  title={titles.category(cat.phrase, jobs.length)}
+  description={desc}
   noindex={jobs.length < 3}
+  schema={[
+    collectionPageSchema(origin, { path, name: `${heading} in India`, description: desc }),
+    breadcrumbSchema(origin, [{ name: 'Home', path: '/' }, { name: cat.label }]),
+    jobs.length ? itemListSchema(origin, jobs, { name: `${cat.label} job openings in India` }) : null,
+  ]}
 >
   <JobList
-    heading={`${cat.label} jobs`}
+    heading={heading}
     sub={BLURB[cat.slug]}
     jobs={jobs}
     crumb={cat.label}
-    empty="No live openings in this category right now. The monitor runs every ten minutes, so check back shortly."
+    empty="No live openings in this category right now. The monitor runs every five minutes, so check back shortly."
   />
+
+  <section class="cross">
+    <h2>{cat.label} jobs by city</h2>
+    <div class="row">
+      {facets.cities.map(([n, k]) => (
+        <a class="chip" href={`/city/${citySlug(n)}/${cat.slug}`}>{cat.label} in {n}</a>
+      ))}
+    </div>
+  </section>
 </Base>
+
+<style>
+  .cross { padding-block: 48px 0; }
+  .cross h2 { font-size: 18px; font-weight: 800; margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>

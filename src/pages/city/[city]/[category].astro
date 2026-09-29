@@ -1,0 +1,78 @@
+---
+// The highest-intent query shape in this market: city + job type.
+// "walk in interview in hyderabad", "fresher jobs in bangalore",
+// "work from home jobs chennai". One template covers every combination.
+import Base from '../../../layouts/Base.astro';
+import JobList from '../../../components/JobList.astro';
+import { getByFacet, getFacets } from '../../../lib/db.js';
+import { citySlug, CATEGORIES } from '../../../lib/format.js';
+import {
+  titles, descriptions, breadcrumbSchema, itemListSchema, collectionPageSchema,
+} from '../../../lib/seo.js';
+
+const { city, category } = Astro.params;
+
+const cat = CATEGORIES.find((c) => c.slug === category);
+const facets = await getFacets();
+const match = facets.cities.find(([name]) => citySlug(name) === city);
+if (!cat || !match) return Astro.redirect('/404', 404);
+
+const [cityName] = match;
+const jobs = await getByFacet({ city: cityName, ...cat.facet }, 60);
+
+// A combination with almost nothing in it is a thin page. Keep it reachable
+// for anyone who lands on it, but keep it out of the index.
+const thin = jobs.length < 3;
+
+const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
+const path = `/city/${city}/${category}`;
+const heading = `${cat.phrase} in ${cityName}`;
+const desc = descriptions.cityCategory(cityName, cat.phrase, jobs.length);
+
+const schema = [
+  collectionPageSchema(origin, { path, name: heading, description: desc }),
+  breadcrumbSchema(origin, [
+    { name: 'Home', path: '/' },
+    { name: cityName, path: `/city/${city}` },
+    { name: cat.label },
+  ]),
+  jobs.length ? itemListSchema(origin, jobs, { name: heading, description: desc }) : null,
+].filter(Boolean);
+---
+<Base
+  title={titles.cityCategory(cityName, cat.phrase, jobs.length)}
+  description={desc}
+  noindex={thin}
+  schema={schema}
+>
+  <JobList
+    heading={heading}
+    sub={desc}
+    jobs={jobs}
+    crumb={`${cityName} · ${cat.label}`}
+    empty={`No ${cat.label.toLowerCase()} openings in ${cityName} right now. The monitor runs every five minutes, so this changes through the day.`}
+  />
+
+  <section class="cross">
+    <h2>Other {cat.label.toLowerCase()} locations</h2>
+    <div class="row">
+      {facets.cities.filter(([n]) => n !== cityName).map(([n, c]) => (
+        <a class="chip" href={`/city/${citySlug(n)}/${category}`}>{cat.label} in {n}</a>
+      ))}
+    </div>
+    <h2 class="second">More in {cityName}</h2>
+    <div class="row">
+      <a class="chip" href={`/city/${city}`}>All jobs in {cityName}</a>
+      {CATEGORIES.filter((c) => c.slug !== category).map((c) => (
+        <a class="chip" href={`/city/${city}/${c.slug}`}>{c.label} in {cityName}</a>
+      ))}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .cross { padding-block: 48px 0; }
+  .cross h2 { font-size: 18px; font-weight: 800; margin-bottom: 14px; }
+  .cross h2.second { margin-top: 30px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>

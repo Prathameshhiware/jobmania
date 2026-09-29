@@ -2,7 +2,10 @@
 import Base from '../../layouts/Base.astro';
 import JobList from '../../components/JobList.astro';
 import { getByFacet, getFacets } from '../../lib/db.js';
-import { citySlug } from '../../lib/format.js';
+import { citySlug, CATEGORIES, TYPE_LABEL } from '../../lib/format.js';
+import {
+  titles, descriptions, breadcrumbSchema, itemListSchema, collectionPageSchema,
+} from '../../lib/seo.js';
 
 const { city } = Astro.params;
 const facets = await getFacets();
@@ -11,12 +14,44 @@ if (!match) return Astro.redirect('/404', 404);
 
 const [name, count] = match;
 const jobs = await getByFacet({ city: name }, 60);
-const sub = `Live job openings in ${name}, re-checked daily against each employer’s own careers page. Walk-ins show their venue and timing so you can confirm before travelling.`;
+
+// Types present in this city, named in the meta description — it is what the
+// searcher is scanning the result for.
+const present = [...new Set(jobs.map((j) => TYPE_LABEL[j.hiring_type] ?? j.hiring_type))].slice(0, 4).join(', ');
+const sub = descriptions.city(name, jobs.length, present);
+
+const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
+const path = `/city/${city}`;
 ---
 <Base
-  title={`Jobs in ${name} — ${count} live openings | JoBmania`}
+  title={titles.city(name, jobs.length)}
   description={sub}
   noindex={jobs.length < 3}
+  schema={[
+    collectionPageSchema(origin, { path, name: `Jobs in ${name}`, description: sub }),
+    breadcrumbSchema(origin, [{ name: 'Home', path: '/' }, { name }]),
+    jobs.length ? itemListSchema(origin, jobs, { name: `Job openings in ${name}` }) : null,
+  ]}
 >
   <JobList heading={`Jobs in ${name}`} sub={sub} jobs={jobs} crumb={name} />
+
+  <section class="cross">
+    <h2>Browse {name} by type</h2>
+    <div class="row">
+      {CATEGORIES.map((c) => <a class="chip" href={`/city/${city}/${c.slug}`}>{c.label} in {name}</a>)}
+    </div>
+    <h2 class="second">Other cities</h2>
+    <div class="row">
+      {facets.cities.filter(([n]) => n !== name).map(([n, k]) => (
+        <a class="chip" href={`/city/${citySlug(n)}`}>{n} · {k}</a>
+      ))}
+    </div>
+  </section>
 </Base>
+
+<style>
+  .cross { padding-block: 48px 0; }
+  .cross h2 { font-size: 18px; font-weight: 800; margin-bottom: 14px; }
+  .cross h2.second { margin-top: 30px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>

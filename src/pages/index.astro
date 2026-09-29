@@ -3,11 +3,45 @@ import Base from '../layouts/Base.astro';
 import JobCard from '../components/JobCard.astro';
 import { getLatest, getClosingSoon, getFacets } from '../lib/db.js';
 import { citySlug, CATEGORIES, TYPE_LABEL } from '../lib/format.js';
+import {
+  titles, descriptions, organizationSchema, websiteSchema, itemListSchema, faqSchema,
+} from '../lib/seo.js';
 
 const [latest, closing, facets] = await Promise.all([
   getLatest(6),
   getClosingSoon(5),
   getFacets(),
+]);
+
+const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
+
+// Answer-engine surface: these are the questions a model gets asked about a
+// job site, answered from facts this site can actually stand behind.
+const homeFaq = faqSchema([
+  {
+    q: 'Are the job openings on JoBmania still open?',
+    a: `Every listing is re-tested daily against the employer's own application link. ` +
+       `Anything returning a 404 or past its deadline is removed within 24 hours, so the ` +
+       `${facets.total} openings currently listed all responded on the last check.`,
+  },
+  {
+    q: 'Does JoBmania charge candidates a fee?',
+    a: 'No. JoBmania never charges candidates, and no legitimate employer asks a candidate ' +
+       'for a registration fee, security deposit or training charge. Listings that request ' +
+       'money are flagged and removed.',
+  },
+  {
+    q: 'Why do some listings show no salary?',
+    a: 'Because the employer did not publish one. JoBmania shows pay only when the employer ' +
+       'states it and never estimates a range, so an empty salary field means the information ' +
+       'does not exist upstream rather than that it is unknown.',
+  },
+  {
+    q: 'How do walk-in interview listings work?',
+    a: 'A walk-in has no online application — you attend in person. Each walk-in listing shows ' +
+       'the venue, the date range and the timing where the employer published them. Confirm with ' +
+       'the employer before travelling, as drives can be cancelled at short notice.',
+  },
 ]);
 
 const ICONS = {
@@ -29,9 +63,15 @@ const countFor = (c) => {
 };
 ---
 <Base
-  title="JoBmania — job openings that are still actually open"
-  description={`${facets.total} live job openings across India, every one re-checked daily against the employer's own careers page. Freshers, walk-ins, remote and off-campus roles.`}
+  title={titles.home(facets.total)}
+  description={descriptions.home(facets.total, facets.addedToday)}
   maxAge={180}
+  schema={[
+    organizationSchema(origin),
+    websiteSchema(origin),
+    homeFaq,
+    latest.length ? itemListSchema(origin, latest, { name: 'Recently posted job openings in India' }) : null,
+  ]}
 >
   <header class="hero">
     <p class="pill"><span class="dot"></span>{facets.total.toLocaleString('en-IN')} live openings · {facets.addedToday} added today</p>

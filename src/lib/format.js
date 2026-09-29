@@ -1,14 +1,18 @@
 // Display helpers. Every one of these returns null or an empty string when the
 // underlying value is absent — nothing here invents a default.
 
+// `label` is the UI word. `phrase` is the SEO one — written the way this market
+// actually types the query, which is rarely the way a nav label reads. Nobody
+// searches "walk-ins jobs in hyderabad"; they search "walk in interview in
+// hyderabad". The phrase drives the <title> and meta description.
 export const CATEGORIES = [
-  { slug: 'just-posted',  label: 'Just Posted',  facet: {} },
-  { slug: 'freshers',     label: 'Freshers',     facet: { level: 'fresher' } },
-  { slug: 'experienced',  label: 'Experienced',  facet: { level: '2-5' } },
-  { slug: 'remote',       label: 'Remote',       facet: { remote: true } },
-  { slug: 'walk-ins',     label: 'Walk-ins',     facet: { hiringType: 'walk-in' } },
-  { slug: 'internships',  label: 'Internships',  facet: { hiringType: 'internship' } },
-  { slug: 'off-campus',   label: 'Off-campus',   facet: { hiringType: 'off-campus' } },
+  { slug: 'just-posted', label: 'Just Posted',  phrase: 'Latest Jobs',          facet: {} },
+  { slug: 'freshers',    label: 'Freshers',     phrase: 'Fresher Jobs',         facet: { level: 'fresher' } },
+  { slug: 'experienced', label: 'Experienced',  phrase: 'Experienced Jobs',     facet: { level: '2-5' } },
+  { slug: 'remote',      label: 'Remote',       phrase: 'Work From Home Jobs',  facet: { remote: true } },
+  { slug: 'walk-ins',    label: 'Walk-ins',     phrase: 'Walk In Interviews',   facet: { hiringType: 'walk-in' } },
+  { slug: 'internships', label: 'Internships',  phrase: 'Internships',          facet: { hiringType: 'internship' } },
+  { slug: 'off-campus',  label: 'Off-campus',   phrase: 'Off Campus Drives',    facet: { hiringType: 'off-campus' } },
 ];
 
 export const citySlug = (c) => String(c ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
