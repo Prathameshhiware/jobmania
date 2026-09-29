@@ -1,7 +1,7 @@
 ---
-// One article. The URL carries its kind — /insights/reports/<slug> — so the
-// path itself says what a reader is about to get, and a report never sits at
-// the same address as an opinion piece.
+// One article. The URL carries its kind — /insights/playbook/<slug> — so the
+// path itself says what a reader is about to get, and a piece of guidance never
+// sits at the same address as an argument.
 import { getCollection, render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import { KINDS, kindBySlug, articlePath, fmtDate, readingMinutes, publish } from '../../../lib/insights.js';
@@ -82,8 +82,8 @@ const articleSchema = {
         <span>{mins} min read</span>
       </p>
 
-      {/* A report's numbers are true as of a moment. Saying so up front is the
-          difference between a measurement and a claim. */}
+      {/* A figure from our own database is true as of a moment. Saying so up
+          front is the difference between a measurement and a claim. */}
       {d.dataAsOf && (
         <p class="asof glass">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -110,9 +110,9 @@ const articleSchema = {
       <p>
         Everything on JoBmania belongs to one of three categories. <strong>Measured</strong> means
         our own system produced the number. <strong>Extracted</strong> means it appeared in the
-        employer's own posting. <strong>Authored</strong> means a person wrote it and put their name
-        to it — this piece is {d.kind === 'report' ? <>a <strong>measured</strong> report</> : <><strong>authored</strong></>}.
-        Nothing here is generated to fill space.
+        employer's own posting. <strong>Authored</strong> means a person wrote it and put their name to it.
+        Everything in this section is <strong>authored</strong> — written by a person and
+        signed. Nothing here is generated to fill space.
       </p>
     </aside>
   </article>

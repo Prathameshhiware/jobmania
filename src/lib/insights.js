@@ -5,19 +5,27 @@
 // structured data can never drift apart.
 
 /**
- * `schema` is the schema.org type emitted for that kind. A report is an
- * analytical piece built on data, which is what `Report` means; a playbook is
- * instructional; the other two are ordinary articles. Getting this right is
- * what lets a search engine treat a report as research rather than a blog post.
+ * `schema` is the schema.org type emitted for that kind. A blog post is a
+ * `BlogPosting`; an essay and a playbook are both `Article`, which is what a
+ * standalone piece of writing is. Getting this right is what lets a search
+ * engine tell a considered argument apart from a changelog note.
  */
 export const KINDS = {
-  report: {
-    slug: 'reports',
-    label: 'Reports',
-    one: 'Report',
-    schema: 'Report',
+  blog: {
+    slug: 'blogs',
+    label: 'Blogs',
+    one: 'Blog',
+    schema: 'BlogPosting',
     blurb:
-      'Numbers measured by our own system — what we tracked, what we removed, and what that says about hiring in India.',
+      'Shorter pieces — what changed on the site, what we are seeing across the openings we track, and how this was built.',
+  },
+  'thought-leadership': {
+    slug: 'thought-leadership',
+    label: 'Thought Leadership',
+    one: 'Essay',
+    schema: 'Article',
+    blurb:
+      'Arguments about how hiring in India actually works, and how it should. One reading of the evidence, put plainly enough to disagree with.',
   },
   playbook: {
     slug: 'playbook',
@@ -27,30 +35,15 @@ export const KINDS = {
     blurb:
       'Practical guidance for applying in India, written to be acted on. Every claim that matters carries a source you can check.',
   },
-  perspective: {
-    slug: 'perspectives',
-    label: 'Perspectives',
-    one: 'Perspective',
-    schema: 'Article',
-    blurb:
-      'Arguments about how hiring works here, and how it should. One reading of the evidence, not the only one.',
-  },
-  blog: {
-    slug: 'blog',
-    label: 'Notes',
-    one: 'Note',
-    schema: 'BlogPosting',
-    blurb: 'Shorter pieces: what changed on the site, and how it was built.',
-  },
 };
 
-/** Ordered for the nav and the index — heaviest first. */
-export const KIND_ORDER = ['report', 'playbook', 'perspective', 'blog'];
+/** Ordered for the nav and the index. */
+export const KIND_ORDER = ['blog', 'thought-leadership', 'playbook'];
 
 export const kindBySlug = (slug) =>
   KIND_ORDER.find((k) => KINDS[k].slug === slug) ?? null;
 
-/** `/insights/reports/how-many-links-die` */
+/** `/insights/playbook/what-to-carry-to-a-walk-in` */
 export const articlePath = (entry) => `/insights/${KINDS[entry.data.kind].slug}/${entry.id}`;
 
 export const fmtDate = (d) =>

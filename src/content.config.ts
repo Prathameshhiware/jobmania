@@ -8,18 +8,18 @@
 // The frontmatter carries the provenance rules the rest of the project already
 // follows. `kind` says which of the three categories a piece belongs to:
 //
-//   report      — measured. Numbers this system produced. `dataAsOf` required,
-//                 because a statistic without the date it was taken is a claim
-//                 with no shelf life.
-//   playbook    — authored guidance. Anything a reader could act on and be hurt
-//                 by needs `sources`, so the claim is checkable rather than
-//                 confident.
-//   perspective — authored opinion, clearly one person's reading.
-//   blog        — everything else: product notes, changelog, how this was built.
+//   blog               — shorter pieces: product notes, what we are seeing,
+//                        how this was built.
+//   thought-leadership — an argument, clearly one person's reading of the
+//                        evidence rather than a neutral summary.
+//   playbook           — guidance a reader will act on. Anything they could be
+//                        hurt by getting wrong needs `sources`, so the claim is
+//                        checkable rather than merely confident.
 //
-// The schema refuses a report without an as-of date on purpose. It is the same
-// idea as the database constraint that will not publish a job without a way to
-// apply: make the rule structural and it cannot be forgotten on a busy day.
+// All three are authored, so each carries a byline. Where a piece leans on a
+// figure this system measured, `dataAsOf` records the moment it was true — a
+// statistic with no as-of date cannot be checked, and an answer engine quoting
+// it has no way to know it has gone stale.
 
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
@@ -33,7 +33,7 @@ const insights = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/insights' }),
   schema: z
     .object({
-      kind: z.enum(['report', 'playbook', 'perspective', 'blog']),
+      kind: z.enum(['blog', 'thought-leadership', 'playbook']),
       title: z.string().max(120),
       // The standfirst. Doubles as the meta description, so it has to read as a
       // sentence on its own and state the point rather than tease it.
@@ -42,7 +42,8 @@ const insights = defineCollection({
       updated: z.coerce.date().optional(),
       author: z.string().default('Prathamesh Hiware'),
 
-      // Reports only: the moment the numbers were true.
+      // Set on any piece that quotes a figure from our own database: the
+      // moment those numbers were true. Rendered at the top of the article.
       dataAsOf: z.coerce.date().optional(),
 
       // Where a checkable claim came from. Rendered at the foot of the article.
@@ -54,10 +55,6 @@ const insights = defineCollection({
 
       tags: z.array(z.string()).default([]),
       draft: z.boolean().default(false),
-    })
-    .refine((d) => d.kind !== 'report' || d.dataAsOf != null, {
-      message: 'A report must carry dataAsOf: the date its numbers were measured.',
-      path: ['dataAsOf'],
     }),
 });
 
