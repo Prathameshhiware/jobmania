@@ -39,6 +39,10 @@ export const titles = {
   search: (q, city) =>
     q ? `${q}${city ? ` in ${city}` : ''} Jobs — Search Results | ${SITE_NAME}`
       : `All Job Openings in India | ${SITE_NAME}`,
+
+  allJobs: (c) => `All Job Openings in India — ${n(c)} Live Vacancies Today | ${SITE_NAME}`,
+
+  cityOnly: (city, c) => `Jobs in ${city} — ${n(c)} Verified Openings Hiring Now | ${SITE_NAME}`,
 };
 
 /* --------------------------------------------------------- descriptions --- */
@@ -57,12 +61,22 @@ export const descriptions = {
     `Each apply link is tested daily and closed roles are removed within 24 hours, ` +
     `so every listing you see in ${city} is genuinely still open.`,
 
-  category: (label, blurb, c) => `${n(c)} live ${label.toLowerCase()} openings across India. ${blurb}`,
+  // `phrase` is already a noun phrase — appending "openings" to it produced
+  // "walk in interviews openings", so nothing is appended.
+  category: (phrase, detail, c) =>
+    `${n(c)} live ${phrase.toLowerCase()} across India, each verified against the employer's ` +
+    `own careers page and re-checked daily. ${detail}`,
 
-  cityCategory: (city, label, c) =>
-    `${n(c)} ${label.toLowerCase()} openings in ${city}, verified against each employer's ` +
-    `own careers page and re-checked daily. Venue, timing and eligibility shown where the ` +
-    `employer published them.`,
+  // `detail` is the category's own clause, so a freshers page no longer talks
+  // about venues and a walk-in page still does.
+  cityCategory: (city, phrase, detail, c) =>
+    `${n(c)} ${phrase.toLowerCase()} in ${city}, verified against each employer's own careers ` +
+    `page and re-checked daily. ${detail}`,
+
+  allJobs: (c, cities) =>
+    `Every one of the ${n(c)} job openings currently live on ${SITE_NAME}, newest first` +
+    `${cities ? `, across ${cities}` : ''}. Each apply link is tested daily and closed roles ` +
+    `are removed within 24 hours.`,
 
   company: (name, c, cities) =>
     `${n(c)} current openings at ${name}${cities ? ` across ${cities}` : ''}. ` +

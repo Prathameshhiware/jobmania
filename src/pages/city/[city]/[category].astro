@@ -4,7 +4,7 @@
 // "work from home jobs chennai". One template covers every combination.
 import Base from '../../../layouts/Base.astro';
 import JobList from '../../../components/JobList.astro';
-import { getByFacet, getFacets } from '../../../lib/db.js';
+import { getByFacet, getFacets, countByFacet } from '../../../lib/db.js';
 import { citySlug, CATEGORIES } from '../../../lib/format.js';
 import {
   titles, descriptions, breadcrumbSchema, itemListSchema, collectionPageSchema,
@@ -18,16 +18,17 @@ const match = facets.cities.find(([name]) => citySlug(name) === city);
 if (!cat || !match) return Astro.redirect('/404', 404);
 
 const [cityName] = match;
-const jobs = await getByFacet({ city: cityName, ...cat.facet }, 60);
+const facet = { city: cityName, ...cat.facet };
+const [jobs, total] = await Promise.all([getByFacet(facet, 60), countByFacet(facet)]);
 
 // A combination with almost nothing in it is a thin page. Keep it reachable
 // for anyone who lands on it, but keep it out of the index.
-const thin = jobs.length < 3;
+const thin = total < 3;
 
 const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
 const path = `/city/${city}/${category}`;
 const heading = `${cat.phrase} in ${cityName}`;
-const desc = descriptions.cityCategory(cityName, cat.phrase, jobs.length);
+const desc = descriptions.cityCategory(cityName, cat.phrase, cat.detail, total);
 
 const schema = [
   collectionPageSchema(origin, { path, name: heading, description: desc }),
@@ -40,7 +41,7 @@ const schema = [
 ].filter(Boolean);
 ---
 <Base
-  title={titles.cityCategory(cityName, cat.phrase, jobs.length)}
+  title={titles.cityCategory(cityName, cat.phrase, total)}
   description={desc}
   noindex={thin}
   schema={schema}

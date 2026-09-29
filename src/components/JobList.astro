@@ -1,7 +1,12 @@
 ---
 import JobCard from './JobCard.astro';
 
-const { heading, sub, jobs = [], empty = 'Nothing live here right now.', crumb } = Astro.props;
+const { heading, sub, jobs = [], empty = 'Nothing live here right now.', crumb, total } = Astro.props;
+
+// `total` is the real number of matching rows; `jobs` is capped at a page size.
+// Say so rather than letting the count on the page contradict the title.
+const all = total ?? jobs.length;
+const capped = all > jobs.length;
 ---
 {crumb && (
   <nav class="crumbs" aria-label="Breadcrumb">
@@ -14,7 +19,9 @@ const { heading, sub, jobs = [], empty = 'Nothing live here right now.', crumb }
   <p class="sub">{sub}</p>
   <p class="count">
     <span class="dot"></span>
-    {jobs.length} live opening{jobs.length === 1 ? '' : 's'}{jobs.length ? ' · all link-checked within the last 24 hours' : ''}
+    {all} live opening{all === 1 ? '' : 's'}
+    {capped ? ` · showing the ${jobs.length} most recent` : ''}
+    {all ? ' · all link-checked within the last 24 hours' : ''}
   </p>
 </header>
 

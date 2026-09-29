@@ -2,7 +2,10 @@
 import Base from '../layouts/Base.astro';
 import JobList from '../components/JobList.astro';
 import { search, getByFacet, getLatest, getFacets } from '../lib/db.js';
-import { citySlug } from '../lib/format.js';
+import { citySlug, CATEGORIES } from '../lib/format.js';
+import {
+  titles, descriptions, breadcrumbSchema, itemListSchema, collectionPageSchema,
+} from '../lib/seo.js';
 
 const q = Astro.url.searchParams.get('q')?.trim() ?? '';
 const city = Astro.url.searchParams.get('city')?.trim() ?? '';
@@ -18,19 +21,37 @@ else jobs = await getLatest(60);
 if (q && knownCity) jobs = jobs.filter((j) => j.city_primary === knownCity);
 
 const heading = q ? `“${q}”${knownCity ? ` in ${knownCity}` : ''}` : knownCity ? `Jobs in ${knownCity}` : 'All live openings';
-const sub = q || knownCity
+
+const topCities = facets.cities.slice(0, 5).map(([c]) => c).join(', ');
+
+// The real number of matching rows. `jobs` is capped at a page size, so using
+// its length in a title would state a number that is not true.
+const total = q ? jobs.length : knownCity ? (facets.cities.find(([n]) => n === knownCity)?.[1] ?? jobs.length) : facets.total;
+
+// A search result set is noindex, so it gets a plain description. The bare
+// /jobs page is a real landing page and gets a keyword-bearing one.
+const isSearch = Boolean(q || knownCity);
+const sub = isSearch
   ? 'Results from live openings only. Anything closed or unreachable has already been delisted.'
-  : `Every opening currently live on JoBmania, newest first.`;
+  : descriptions.allJobs(total, topCities);
+
+const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
 ---
 <Base
-  title={`${heading} | JoBmania`}
+  title={isSearch ? `${titles.search(q, knownCity)}` : titles.allJobs(total)}
   description={sub}
-  noindex={Boolean(q)}
+  noindex={isSearch}
+  schema={isSearch ? [] : [
+    collectionPageSchema(origin, { path: '/jobs', name: 'All job openings in India', description: sub }),
+    breadcrumbSchema(origin, [{ name: 'Home', path: '/' }, { name: 'All jobs' }]),
+    jobs.length ? itemListSchema(origin, jobs, { name: 'Live job openings in India' }) : null,
+  ].filter(Boolean)}
 >
   <JobList
     heading={heading}
     sub={sub}
     jobs={jobs}
+    total={total}
     crumb="Search"
     empty={q ? `Nothing live matches “${q}” right now. Try a company name, a role, or a city.` : 'No live openings right now.'}
   />

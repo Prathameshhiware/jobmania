@@ -5,14 +5,26 @@
 // actually types the query, which is rarely the way a nav label reads. Nobody
 // searches "walk-ins jobs in hyderabad"; they search "walk in interview in
 // hyderabad". The phrase drives the <title> and meta description.
+// `label`  — the UI word, used in nav and headings.
+// `phrase` — the SEO noun phrase, written the way this market types the query.
+//            Already a complete noun phrase, so nothing is appended to it.
+// `detail` — one clause that makes each meta description specific to the
+//            category rather than boilerplate shared across all of them.
 export const CATEGORIES = [
-  { slug: 'just-posted', label: 'Just Posted',  phrase: 'Latest Jobs',          facet: {} },
-  { slug: 'freshers',    label: 'Freshers',     phrase: 'Fresher Jobs',         facet: { level: 'fresher' } },
-  { slug: 'experienced', label: 'Experienced',  phrase: 'Experienced Jobs',     facet: { level: '2-5' } },
-  { slug: 'remote',      label: 'Remote',       phrase: 'Work From Home Jobs',  facet: { remote: true } },
-  { slug: 'walk-ins',    label: 'Walk-ins',     phrase: 'Walk In Interviews',   facet: { hiringType: 'walk-in' } },
-  { slug: 'internships', label: 'Internships',  phrase: 'Internships',          facet: { hiringType: 'internship' } },
-  { slug: 'off-campus',  label: 'Off-campus',   phrase: 'Off Campus Drives',    facet: { hiringType: 'off-campus' } },
+  { slug: 'just-posted', label: 'Just Posted', phrase: 'Latest Jobs',         facet: {},
+    detail: 'Newest first, so the top of the page is what arrived in the last few hours.' },
+  { slug: 'freshers',    label: 'Freshers',    phrase: 'Fresher Jobs',        facet: { level: 'fresher' },
+    detail: 'Open to candidates with no prior experience, including trainee and graduate roles.' },
+  { slug: 'experienced', label: 'Experienced', phrase: 'Experienced Jobs',    facet: { level: '2-5' },
+    detail: 'For candidates with a few years behind them rather than a clean slate.' },
+  { slug: 'remote',      label: 'Remote',      phrase: 'Work From Home Jobs', facet: { remote: true },
+    detail: 'Fully remote roles hiring from anywhere in India.' },
+  { slug: 'walk-ins',    label: 'Walk-ins',    phrase: 'Walk In Interviews',  facet: { hiringType: 'walk-in' },
+    detail: 'Venue, date and timing are shown where the employer published them. Confirm before you travel.' },
+  { slug: 'internships', label: 'Internships', phrase: 'Internships',         facet: { hiringType: 'internship' },
+    detail: 'Internships and apprenticeships, including pre-placement opportunities.' },
+  { slug: 'off-campus',  label: 'Off-campus',  phrase: 'Off Campus Drives',   facet: { hiringType: 'off-campus' },
+    detail: 'Open to graduates applying outside a college placement process.' },
 ];
 
 export const citySlug = (c) => String(c ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

@@ -3,7 +3,7 @@ import Base from '../../layouts/Base.astro';
 import JobList from '../../components/JobList.astro';
 import { getByFacet, getLatest } from '../../lib/db.js';
 import { CATEGORIES, citySlug } from '../../lib/format.js';
-import { getFacets } from '../../lib/db.js';
+import { getFacets, countByFacet } from '../../lib/db.js';
 import {
   titles, descriptions, breadcrumbSchema, itemListSchema, collectionPageSchema,
 } from '../../lib/seo.js';
@@ -12,11 +12,17 @@ const { category } = Astro.params;
 const cat = CATEGORIES.find((c) => c.slug === category);
 if (!cat) return Astro.redirect('/404', 404);
 
-const [jobs, facets] = await Promise.all([
+const [jobs, facets, matched] = await Promise.all([
   cat.slug === 'just-posted' ? getLatest(60) : getByFacet(cat.facet, 60),
   getFacets(),
+  cat.slug === 'just-posted' ? null : countByFacet(cat.facet),
 ]);
 
+// The listing is capped at a page size; this is the real number.
+const total = matched ?? facets.total;
+
+// On-page intro copy. The meta description is built separately from the
+// category's own `detail` clause so the two read naturally in their own place.
 const BLURB = {
   'just-posted': 'The newest openings on JoBmania, most recent first. Every one was checked against the employer’s own page before it appeared here.',
   'freshers': 'Roles open to candidates with no prior experience, including off-campus drives and trainee positions.',
@@ -30,12 +36,12 @@ const BLURB = {
 const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
 const path = `/c/${cat.slug}`;
 const heading = `${cat.label} jobs`;
-const desc = descriptions.category(cat.phrase, BLURB[cat.slug], jobs.length);
+const desc = descriptions.category(cat.phrase, cat.detail, total);
 ---
 <Base
-  title={titles.category(cat.phrase, jobs.length)}
+  title={titles.category(cat.phrase, total)}
   description={desc}
-  noindex={jobs.length < 3}
+  noindex={total < 3}
   schema={[
     collectionPageSchema(origin, { path, name: `${heading} in India`, description: desc }),
     breadcrumbSchema(origin, [{ name: 'Home', path: '/' }, { name: cat.label }]),
@@ -46,6 +52,7 @@ const desc = descriptions.category(cat.phrase, BLURB[cat.slug], jobs.length);
     heading={heading}
     sub={BLURB[cat.slug]}
     jobs={jobs}
+    total={total}
     crumb={cat.label}
     empty="No live openings in this category right now. The monitor runs every five minutes, so check back shortly."
   />

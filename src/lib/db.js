@@ -85,6 +85,21 @@ export async function getByCompany(companySlug, limit = 50) {
   return data ?? [];
 }
 
+/**
+ * Exact number of live rows matching a facet, without fetching them.
+ * Listing queries are capped at a page size, so `rows.length` is the cap, not
+ * the total — putting it in a title states a number that is not true.
+ */
+export async function countByFacet({ city, hiringType, level, remote } = {}) {
+  let q = sb.from('jobs').select('id', { count: 'exact', head: true }).eq('status', 'live');
+  if (city) q = q.eq('city_primary', city);
+  if (hiringType) q = q.eq('hiring_type', hiringType);
+  if (level) q = q.eq('experience_level', level);
+  if (remote) q = q.eq('is_remote', true);
+  const { count } = await q;
+  return count ?? 0;
+}
+
 export async function getByFacet({ city, hiringType, level, remote } = {}, limit = 60) {
   let q = live();
   if (city) q = q.eq('city_primary', city);

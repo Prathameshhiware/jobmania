@@ -12,28 +12,29 @@ const facets = await getFacets();
 const match = facets.cities.find(([name]) => citySlug(name) === city);
 if (!match) return Astro.redirect('/404', 404);
 
+// `count` from the facet pass is the real total; `jobs` is capped at a page size.
 const [name, count] = match;
 const jobs = await getByFacet({ city: name }, 60);
 
 // Types present in this city, named in the meta description — it is what the
 // searcher is scanning the result for.
 const present = [...new Set(jobs.map((j) => TYPE_LABEL[j.hiring_type] ?? j.hiring_type))].slice(0, 4).join(', ');
-const sub = descriptions.city(name, jobs.length, present);
+const sub = descriptions.city(name, count, present);
 
 const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
 const path = `/city/${city}`;
 ---
 <Base
-  title={titles.city(name, jobs.length)}
+  title={titles.cityOnly(name, count)}
   description={sub}
-  noindex={jobs.length < 3}
+  noindex={count < 3}
   schema={[
     collectionPageSchema(origin, { path, name: `Jobs in ${name}`, description: sub }),
     breadcrumbSchema(origin, [{ name: 'Home', path: '/' }, { name }]),
     jobs.length ? itemListSchema(origin, jobs, { name: `Job openings in ${name}` }) : null,
   ]}
 >
-  <JobList heading={`Jobs in ${name}`} sub={sub} jobs={jobs} crumb={name} />
+  <JobList heading={`Jobs in ${name}`} sub={sub} jobs={jobs} total={count} crumb={name} />
 
   <section class="cross">
     <h2>Browse {name} by type</h2>
