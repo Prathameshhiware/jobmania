@@ -52,10 +52,16 @@ select cron.schedule(
 --   select jobid, schedule, jobname, active from cron.job;
 --
 -- Did the last runs succeed? (pg_cron's own log)
---   select start_time, status, return_message
---   from cron.job_run_details
---   where jobname = 'jobmania-poll'
---   order by start_time desc limit 10;
+-- job_run_details keys on jobid, not jobname, so it has to be joined:
+--   select d.start_time, d.status, d.return_message
+--   from cron.job_run_details d
+--   join cron.job j on j.jobid = d.jobid
+--   where j.jobname = 'jobmania-poll'
+--   order by d.start_time desc limit 10;
+--
+-- Or check the pipeline's own record, which is easier to read:
+--   select last_run_at, last_ok_at, runs, last_error
+--   from public.source_state where source = 'foundthejob';
 --
 -- What did the endpoint actually answer? (pg_net's response log)
 --   select created, status_code, content
