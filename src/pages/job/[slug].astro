@@ -4,7 +4,7 @@ import JobCard from '../../components/JobCard.astro';
 import { getJobBySlug, getSimilar, getByCompany, getAlternatives } from '../../lib/db.js';
 import {
   timeAgo, daysLeft, experienceLabel, salaryLabel, locationLabel,
-  walkinLabel, citySlug, TYPE_LABEL,
+  walkinLabel, citySlug, hasStatedDeadline, TYPE_LABEL,
 } from '../../lib/format.js';
 import { titles, descriptions, breadcrumbSchema, faqSchema, clean } from '../../lib/seo.js';
 import { sanitizeJobHtml } from '../../lib/sanitize.js';
@@ -40,7 +40,8 @@ const exp = experienceLabel(job.exp_min, job.exp_max);
 const pay = salaryLabel(job);
 const where = locationLabel(job);
 const walkin = walkinLabel(job);
-const left = daysLeft(job.valid_through);
+const stated = hasStatedDeadline(job);
+const left = stated ? daysLeft(job.valid_through) : null;
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
 // Facts, restated. Every clause below is a stored field — nothing inferred.
@@ -58,7 +59,10 @@ const jsonLd = {
   title: job.title,
   description: job.description_html ?? factSentence,
   datePosted: job.posted_at,
-  validThrough: job.valid_through,
+  // Emitted only when the employer stated a date. Handing Google a deadline
+  // we invented is a structured-data violation and a lie to the reader, the
+  // same reason baseSalary is omitted unless the employer published a figure.
+  ...(stated ? { validThrough: job.valid_through } : {}),
   employmentType: job.hiring_type === 'internship' ? 'INTERN' : 'FULL_TIME',
   hiringOrganization: { '@type': 'Organization', name: job.company_name },
   jobLocation: job.is_remote
@@ -186,7 +190,7 @@ const deadlineLabel = left == null ? null
         </div>
         <p class="meta">
           Posted {fmtDate(job.posted_at)}
-          {job.valid_through && <> · Applications close {fmtDate(job.valid_through)}</>}
+          {stated && <> · Applications close {fmtDate(job.valid_through)}</>}
         </p>
       </header>
 
@@ -214,7 +218,9 @@ const deadlineLabel = left == null ? null
           <div class="fact"><dt>Location</dt><dd class={where ? '' : 'none'}>{where ?? 'Not stated'}</dd></div>
           <div class="fact"><dt>Type</dt><dd>{TYPE_LABEL[job.hiring_type] ?? job.hiring_type}</dd></div>
           <div class="fact"><dt>Pay</dt><dd class={pay ? '' : 'none'}>{pay ?? 'Not stated by the employer'}</dd></div>
-          <div class="fact"><dt>Last date</dt><dd>{fmtDate(job.valid_through)}</dd></div>
+          {stated
+            ? <div class="fact"><dt>Last date</dt><dd>{fmtDate(job.valid_through)}</dd></div>
+            : <div class="fact"><dt>Last date</dt><dd class="unstated">Not stated by the employer</dd></div>}
         </dl>
         <p class="policy">We publish pay only when the employer states it, and never estimate a range.</p>
       </section>
@@ -303,7 +309,7 @@ const deadlineLabel = left == null ? null
         <div class="rows">
           <div class="row"><span>Apply link tested</span><span>{timeAgo(job.last_checked_at) ?? '—'}</span></div>
           <div class="row"><span>First seen</span><span>{fmtDate(job.first_seen_at)}</span></div>
-          <div class="row"><span>Auto-expires</span><span>{fmtDate(job.valid_through)}</span></div>
+          <div class="row"><span>{stated ? 'Closes' : 'We stop listing it'}</span><span>{fmtDate(job.valid_through)}</span></div>
           <div class="row"><span>Fee requested</span><span>{job.scam_flags?.length ? 'Flagged' : 'None'}</span></div>
         </div>
         {job.canonical_url && <a class="src" href={job.canonical_url} target="_blank" rel="noopener nofollow">Employer’s own listing →</a>}
@@ -358,6 +364,7 @@ const deadlineLabel = left == null ? null
   .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 34px; margin: 0; }
   .fact { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--hairline); font-size: 14px; }
   .fact.wide { grid-column: 1 / -1; }
+  .unstated { color: var(--ink-4); font-weight: 500; }
   .fact dt { flex: 0 0 118px; color: var(--ink-3); margin: 0; }
   .fact dd { margin: 0; font-weight: 600; }
   .fact dd.none { font-weight: 400; color: var(--ink-4); font-style: italic; }

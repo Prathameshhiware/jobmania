@@ -1,5 +1,5 @@
 ---
-import { timeAgo, daysLeft, experienceLabel, salaryLabel, locationLabel, walkinLabel, TYPE_LABEL } from '../lib/format.js';
+import { timeAgo, daysLeft, experienceLabel, salaryLabel, locationLabel, walkinLabel, hasStatedDeadline, TYPE_LABEL } from '../lib/format.js';
 
 const { job, compact = false } = Astro.props;
 
@@ -7,7 +7,9 @@ const exp = experienceLabel(job.exp_min, job.exp_max);
 const pay = salaryLabel(job);
 const where = locationLabel(job);
 const walkin = walkinLabel(job);
-const left = daysLeft(job.valid_through);
+// Only counts down against a date the employer actually published. Against
+// our own retirement timer it would be a countdown to nothing.
+const left = hasStatedDeadline(job) ? daysLeft(job.valid_through) : null;
 const verified = timeAgo(job.last_verified_at ?? job.posted_at);
 const closingSoon = left != null && left <= 7;
 // built here: nested template literals inside markup break the transform

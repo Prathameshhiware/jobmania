@@ -39,9 +39,19 @@ export async function getLatest(limit = 9) {
   return data ?? [];
 }
 
+/**
+ * Roles with a real deadline inside the next week.
+ *
+ * Restricted to walk-ins with a parsed drive date, because that is the only
+ * date the source actually publishes. Everything else carries our own
+ * retirement timer in `valid_through`, and listing those here would announce
+ * "closing this week" about a date no employer ever set.
+ */
 export async function getClosingSoon(limit = 5) {
   const in7 = new Date(Date.now() + 7 * 864e5).toISOString();
   const { data } = await live()
+    .eq('hiring_type', 'walk-in')
+    .not('walkin_end', 'is', null)
     .lt('valid_through', in7).gt('valid_through', new Date().toISOString())
     .order('valid_through', { ascending: true }).limit(limit);
   return data ?? [];

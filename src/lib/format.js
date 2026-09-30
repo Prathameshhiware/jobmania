@@ -49,6 +49,29 @@ export function daysLeft(validThrough) {
   return Math.ceil((new Date(validThrough).getTime() - Date.now()) / 864e5);
 }
 
+/**
+ * Did the employer actually state a closing date, or is `valid_through` just
+ * our own retirement timer?
+ *
+ * The column holds both, which is how 192 of 209 live listings ended up
+ * rendering "Applications close 7 October" for a date nobody published. For a
+ * walk-in it is the drive's end date, which the source does state. For
+ * everything else it is posted_at + 45 days, invented so the freshness
+ * constraint had something to check.
+ *
+ * Checked before writing this: across 40 recent source posts, none contain
+ * "last date", "apply before", "closing date" or "apply by". The source does
+ * not publish deadlines for online roles, so there is no real date to show and
+ * the honest move is to show none — the same rule as salary, which appears
+ * only when the employer stated a figure.
+ *
+ * Derived rather than stored: it is exactly "walk-in with a parsed drive date",
+ * both of which are already on the row.
+ */
+export function hasStatedDeadline(job) {
+  return job?.hiring_type === 'walk-in' && Boolean(job?.walkin_end);
+}
+
 export function experienceLabel(min, max) {
   if (min == null && max == null) return null;
   if (min === 0 && (max === 1 || max === 0)) return 'Fresher';
