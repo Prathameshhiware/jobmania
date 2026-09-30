@@ -81,15 +81,6 @@ const articleSchema = {
         <span>{mins} min read</span>
       </p>
 
-      {/* A figure from our own database is true as of a moment. Saying so up
-          front is the difference between a measurement and a claim. */}
-      {d.dataAsOf && (
-        <p class="asof glass">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-          {/* One span, so the sentence stays a single flex item. */}
-          <span>Figures from our own database, measured on {fmtDate(d.dataAsOf)}. They change daily.</span>
-        </p>
-      )}
     </header>
 
     <div class="prose"><Content /></div>
@@ -168,8 +159,6 @@ const articleSchema = {
   .byline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 22px 0 0; font-size: 13px; color: var(--ink-3); }
   .byline .dot { width: 3px; height: 3px; border-radius: 999px; background: var(--ink-4); }
 
-  .asof { display: flex; gap: 10px; align-items: flex-start; border-radius: 16px; padding: 14px 18px; margin: 24px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--ink-2); }
-  .asof > svg { flex: none; margin-top: 2px; color: var(--accent); }
 
   /* The article body. Astro renders the markdown; these rules are the only
      styling it gets, so they have to cover every element markdown can emit. */
