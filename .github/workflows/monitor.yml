@@ -7,10 +7,13 @@ name: Monitor
 
 on:
   schedule:
-    # every 5 minutes, GitHub's minimum. Its scheduler is best-effort and runs
-    # late under load, so real latency is typically 5-15 minutes; the stored
-    # cursor means a late run simply collects everything it missed.
-    - cron: '*/5 * * * *'
+    # Hourly, and deliberately no longer the mechanism. This asked for every 5
+    # minutes and GitHub actually delivered every 3 to 6 hours, because it
+    # deprioritises frequent cron on free runners. The real poll now runs from
+    # pg_cron inside Supabase every minute (db/005-realtime-ingest.sql); this
+    # is the safety net for when that is failing and nobody has noticed. The
+    # stored cursor means a late run simply collects whatever was missed.
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 # The token this workflow gets needs to read the code and nothing else.

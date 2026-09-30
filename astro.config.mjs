@@ -5,7 +5,10 @@ import vercel from '@astrojs/vercel';
 // cached at the edge with short s-maxage headers set in Base.astro.
 export default defineConfig({
   output: 'server',
-  adapter: vercel(),
+  // 60s ceiling for the ingest route. The poll normally finishes in two or
+  // three seconds; the headroom is for a run that has to resolve several
+  // employer listings at once. Vercel's Hobby default is 10s.
+  adapter: vercel({ maxDuration: 60 }),
   // Canonicals, sitemap and JSON-LD all need an absolute origin. SITE_URL wins
   // once a real domain exists; before that Vercel supplies its own production
   // host, so nothing points at a placeholder on the first deploy.

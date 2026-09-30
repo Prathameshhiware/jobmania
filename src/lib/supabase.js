@@ -12,11 +12,16 @@ if (existsSync('.env.local')) {
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Thrown rather than process.exit: this module is imported by the ingest API
+// route as well as the CLI scripts, and exiting the process inside a
+// serverless function kills the whole invocation with no usable error.
 if (!url || !key) {
-  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
-  console.error('Local: copy .env.example to .env.local and fill it in.');
-  console.error('CI:    set them as GitHub repository secrets.');
-  process.exit(1);
+  throw new Error(
+    'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. ' +
+    'Local: copy .env.example to .env.local and fill it in. ' +
+    'CI: set them as GitHub repository secrets. ' +
+    'Vercel: set them as Environment Variables (server-side only).'
+  );
 }
 
 export const db = createClient(url, key, { auth: { persistSession: false } });
