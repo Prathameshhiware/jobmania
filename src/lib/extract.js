@@ -55,21 +55,100 @@ export function companyFromTitle(title) {
 const MONTHS = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
 
 /** Walk-in date range and timing, only when the post states them. */
-export function parseWalkin(text) {
+/**
+ * Walk-in date, time and venue out of the post body.
+ *
+ * Three things went wrong in the first version of this, and all three are worth
+ * naming because they produced listings that were expired before anyone saw
+ * them:
+ *
+ *   1. It took the first date anywhere in the article. A job post is full of
+ *      dates — eligible batch years, an unrelated drive mentioned further down,
+ *      the date the article itself was written — so the first one is rarely the
+ *      drive. We now look for a date NEAR a label that means the drive date,
+ *      and only fall back to a loose scan when there is no labelled one.
+ *   2. A date with no year got the current year. A post published in September
+ *      quoting "3rd January" became January of THIS year, ten months in the
+ *      past, rather than next year. The year now rolls forward when that is the
+ *      only reading that puts the drive after the announcement.
+ *   3. Nothing checked the result against the post date. A drive cannot happen
+ *      before it is announced, but 58 rows said it did, one of them by 141
+ *      days. Anything still in the past after step 2 is a misparse, and a
+ *      misparsed date is worse than no date: it publishes a listing that the
+ *      expiry pass kills within the hour. We return null and let the row wait
+ *      for review instead.
+ *
+ * @param text     the post body, tags stripped
+ * @param postedAt when the post was published, as the sanity floor
+ */
+export function parseWalkin(text, postedAt = null) {
   const out = { start: null, end: null, time: null, venue: null };
   if (!text) return out;
 
-  const range = text.match(
-    new RegExp(`(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s*(?:-|–|to)\\s*(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s+(${MONTHS})[a-z]*\\s*(\\d{4})?`, 'i'));
-  if (range) {
-    const [, d1, d2, mon, yr] = range;
-    const y = yr || String(new Date().getFullYear());
-    out.start = toISODate(d1, mon, y);
-    out.end = toISODate(d2, mon, y);
-  } else {
-    const one = text.match(new RegExp(`(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s+(${MONTHS})[a-z]*\\s*(\\d{4})?`, 'i'));
-    if (one) { out.start = toISODate(one[1], one[2], one[3] || String(new Date().getFullYear())); out.end = out.start; }
+  const floor = postedAt ? new Date(postedAt) : null;
+
+  // A drive is days away, not months. Anything further out than this is more
+  // likely a different date that happens to sit near the label.
+  const MAX_LEAD_DAYS = 120;
+
+  const withinWindow = (iso) => {
+    if (!iso) return false;
+    if (!floor) return true;
+    const days = (new Date(`${iso}T23:59:59Z`) - floor) / 864e5;
+    return days >= -1 && days <= MAX_LEAD_DAYS;
+  };
+
+  // Try the year as written, then the next one. A bare "3rd January" on a post
+  // from 30 December means the January five days away, not the one last winter.
+  const resolve = (day, mon, year) => {
+    if (year) {
+      const exact = toISODate(day, mon, year);
+      return withinWindow(exact) ? exact : null;
+    }
+    const thisYear = floor ? floor.getUTCFullYear() : new Date().getUTCFullYear();
+    for (const y of [thisYear, thisYear + 1]) {
+      const iso = toISODate(day, mon, y);
+      if (withinWindow(iso)) return iso;
+    }
+    return null;
+  };
+
+  // Backslashes are doubled because these are template literals handed to
+  // `new RegExp`: a single \d inside backticks is just "d" by the time the
+  // regex sees it, which silently matches nothing.
+  const RANGE = `(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s*(?:-|–|—|to|&)\\s*(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s+(${MONTHS})[a-z]*\\.?,?\\s*(\\d{4})?`;
+  const SINGLE = `(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s+(${MONTHS})[a-z]*\\.?,?\\s*(\\d{4})?`;
+
+  const readFrom = (chunk) => {
+    const r = chunk.match(new RegExp(RANGE, 'i'));
+    if (r) {
+      const start = resolve(r[1], r[3], r[4]);
+      const end = resolve(r[2], r[3], r[4]);
+      if (start && end) return { start, end };
+    }
+    const one = chunk.match(new RegExp(SINGLE, 'i'));
+    if (one) {
+      const d = resolve(one[1], one[2], one[3]);
+      if (d) return { start: d, end: d };
+    }
+    return null;
+  };
+
+  // Labelled first. These are the words the source actually puts in front of a
+  // drive date; the window is short so a date two paragraphs later cannot win.
+  const LABELS = /(?:walk[\s-]?in\s*(?:drive\s*)?date|interview\s*date|drive\s*date|date\s*(?:&|and)\s*time|walk[\s-]?in\s*on|interview\s*on|\bdates?\b)\s*[:\-–]?\s*/gi;
+
+  let found = null;
+  for (const m of text.matchAll(LABELS)) {
+    found = readFrom(text.slice(m.index, m.index + 140));
+    if (found) break;
   }
+
+  // Nothing labelled: scan the whole body, but every candidate still has to
+  // land after the post date, so a batch year or an old drive cannot win.
+  if (!found) found = readFrom(text);
+
+  if (found) { out.start = found.start; out.end = found.end; }
 
   const time = text.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s*(?:-|–|to)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i);
   if (time) out.time = `${time[1].toUpperCase()} – ${time[2].toUpperCase()}`;
@@ -111,10 +190,14 @@ export function extractJob(post, categoryNames = []) {
   const remote = isRemote(`${title} ${locationText} ${categoryNames.join(' ')}`);
   const { min, max } = parseExperience(expText);
   const type = hiringType({ title, categories: categoryNames, body: text });
-  const walkin = type === 'walk-in' ? parseWalkin(text) : { start: null, end: null, time: null, venue: null };
+
+  // Declared before parseWalkin, which needs it: a drive cannot be dated before
+  // the post that announces it, and that check is what keeps a misparsed date
+  // out of the database.
+  const postedAt = new Date(post.date_gmt ? `${post.date_gmt}Z` : post.date).toISOString();
+  const walkin = type === 'walk-in' ? parseWalkin(text, postedAt) : { start: null, end: null, time: null, venue: null };
 
   const applyUrl = parseApplyLinks(html)[0] ?? null;
-  const postedAt = new Date(post.date_gmt ? `${post.date_gmt}Z` : post.date).toISOString();
   const source = 'foundthejob';
   const sourceUid = String(post.id);
   const sid = shortId(source, sourceUid);
