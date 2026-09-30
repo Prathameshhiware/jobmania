@@ -119,18 +119,46 @@ export function parseWalkin(text, postedAt = null) {
   const RANGE = `(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s*(?:-|–|—|to|&)\\s*(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s+(${MONTHS})[a-z]*\\.?,?\\s*(\\d{4})?`;
   const SINGLE = `(\\d{1,2})\\s*(?:st|nd|rd|th)?\\s+(${MONTHS})[a-z]*\\.?,?\\s*(\\d{4})?`;
 
+  /*
+   * Every date in the chunk, not just the first one.
+   *
+   * This used to call .match(), which returns a single result, so the first
+   * date-shaped thing in the body decided the outcome. These posts almost
+   * always open with a date that is already past — the drive they ran last
+   * week, a batch year, the date of an earlier notice — so the first candidate
+   * failed the sanity check and the whole parse gave up, even when a perfectly
+   * good future date sat two sentences later.
+   *
+   * Measured on six listings that were stuck unpublished: five of them had a
+   * usable drive date in the body that this threw away. Omega Healthcare was
+   * posted on 28 September and said "2nd October"; it was rejected because the
+   * body happened to mention 22nd September first.
+   *
+   * So: collect every match that survives resolve(), then take the EARLIEST,
+   * not the first in reading order. A post often names several future dates —
+   * the drive, a last date to apply, an unrelated notice — and the drive is
+   * almost always the soonest. Picking the earliest also errs in the safe
+   * direction: if we are wrong the listing expires too early, which costs a
+   * reader nothing, where picking a later date keeps a finished drive on the
+   * site, which is the exact failure this project exists to prevent.
+   *
+   * A range still wins over a single date, because "2 - 4 October" is more
+   * specific than "2 October".
+   */
   const readFrom = (chunk) => {
-    const r = chunk.match(new RegExp(RANGE, 'i'));
-    if (r) {
+    const found = [];
+    for (const r of chunk.matchAll(new RegExp(RANGE, 'gi'))) {
       const start = resolve(r[1], r[3], r[4]);
       const end = resolve(r[2], r[3], r[4]);
-      if (start && end) return { start, end };
+      if (start && end) found.push({ start, end });
     }
-    const one = chunk.match(new RegExp(SINGLE, 'i'));
-    if (one) {
+    if (found.length) return found.sort((a, b) => a.start.localeCompare(b.start))[0];
+
+    for (const one of chunk.matchAll(new RegExp(SINGLE, 'gi'))) {
       const d = resolve(one[1], one[2], one[3]);
-      if (d) return { start: d, end: d };
+      if (d) found.push({ start: d, end: d });
     }
+    if (found.length) return found.sort((a, b) => a.start.localeCompare(b.start))[0];
     return null;
   };
 

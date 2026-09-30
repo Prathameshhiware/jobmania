@@ -25,11 +25,51 @@ export async function ingestPosts(posts, categories, { resolve = true, log = con
   // Which source ids do we already hold?
   const uids = posts.map((p) => String(p.id));
   const { data: existing } = await db
-    .from('jobs').select('source_uid').eq('source', 'foundthejob').in('source_uid', uids);
-  const have = new Set((existing ?? []).map((r) => r.source_uid));
+    .from('jobs').select('id, source_uid, posted_at, status').eq('source', 'foundthejob').in('source_uid', uids);
+  const have = new Map((existing ?? []).map((r) => [r.source_uid, r]));
 
   for (const post of posts) {
-    if (have.has(String(post.id))) { stats.duplicate++; continue; }
+    const known = have.get(String(post.id));
+    if (known) {
+      /*
+       * We already hold this post id. Usually that is just the source showing
+       * us something we ingested days ago and there is nothing to do.
+       *
+       * But this source re-dates old posts to the top of its feed: of fifteen
+       * listings it presented as today's, fourteen were older, one of them by
+       * 49 days. A re-date alone is a traffic tactic and must not put a
+       * finished drive back on the site. A re-date WITH a drive date that is
+       * still ahead of us is different: the employer is running it again, and
+       * refusing to look means we sit on a live opening the source is
+       * advertising.
+       *
+       * So on a re-date we re-extract, and republish only when the facts
+       * themselves justify it.
+       */
+      const feedDate = new Date(post.date_gmt ? `${post.date_gmt}Z` : post.date);
+      if (feedDate > new Date(known.posted_at)) {
+        const names = (post.categories ?? []).map((id) => categories.get(id)).filter(Boolean);
+        const fresh = extractJob(post, names);
+        const stillOpen = fresh?.walkin_end && new Date(`${fresh.walkin_end}T23:59:59Z`) > new Date();
+        if (stillOpen) {
+          await db.from('jobs').update({
+            posted_at: fresh.posted_at,
+            walkin_start: fresh.walkin_start,
+            walkin_end: fresh.walkin_end,
+            walkin_time: fresh.walkin_time,
+            walkin_venue: fresh.walkin_venue,
+            valid_through: fresh.valid_through,
+            status: 'live',
+            review_reason: null,
+          }).eq('id', known.id);
+          stats.refreshed = (stats.refreshed ?? 0) + 1;
+          log(`  ~ [refreshed] ${fresh.company_name} — drive ${fresh.walkin_end}`);
+          continue;
+        }
+      }
+      stats.duplicate++;
+      continue;
+    }
 
     const names = (post.categories ?? []).map((id) => categories.get(id)).filter(Boolean);
     const row = extractJob(post, names);
@@ -128,6 +168,11 @@ export async function ingestPosts(posts, categories, { resolve = true, log = con
 }
 
 export function summarise(stats) {
-  return `seen ${stats.seen} · added ${stats.added} (live ${stats.live}, review ${stats.review}` +
-         `${stats.flagged ? `, flagged ${stats.flagged}` : ''}) · duplicate ${stats.duplicate} · unusable ${stats.unusable}`;
+  const parts = [
+    `seen ${stats.seen}`,
+    `added ${stats.added} (live ${stats.live}, review ${stats.review}${stats.flagged ? `, flagged ${stats.flagged}` : ''})`,
+  ];
+  if (stats.refreshed) parts.push(`refreshed ${stats.refreshed}`);
+  parts.push(`duplicate ${stats.duplicate}`, `unusable ${stats.unusable}`);
+  return parts.join(' · ');
 }
