@@ -8,6 +8,7 @@ const here = Astro.url.pathname;
     <span class="spacer"></span>
     <a class="plain" href="/jobs">All jobs</a>
     <a class="plain" href="/insights">Insights</a>
+    <a class="plain" href="/closed">Closed</a>
     <a class="btn" href="/c/walk-ins">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
       Walk-ins
@@ -40,6 +41,7 @@ const here = Astro.url.pathname;
       <div class="menu-foot">
         <a class="menu-all" href="/jobs" aria-current={here === '/jobs' ? 'page' : undefined}>All jobs</a>
         <a class="menu-all" href="/insights" aria-current={here.startsWith('/insights') ? 'page' : undefined}>Insights</a>
+        <a class="menu-all" href="/closed" aria-current={here === '/closed' ? 'page' : undefined}>Closed</a>
         <a class="btn" href="/c/walk-ins">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
           Walk-ins
@@ -119,9 +121,12 @@ const here = Astro.url.pathname;
     }
     .menu-grid a[aria-current] { color: var(--ink); font-weight: 700; }
 
-    .menu-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--hairline); }
-    .menu-all { flex: 1 1 auto; display: flex; align-items: center; min-height: 44px; font-size: 15px; font-weight: 600; color: var(--ink); text-decoration: none; }
-    .menu-foot .btn { min-height: 44px; }
+    /* Three links plus the button no longer fit on one line at 375px. They wrap
+       as whole items rather than breaking mid-word: the links hold their width,
+       and the button drops to its own line when it has to. */
+    .menu-foot { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--hairline); }
+    .menu-all { flex: 0 0 auto; white-space: nowrap; display: flex; align-items: center; min-height: 44px; font-size: 15px; font-weight: 600; color: var(--ink); text-decoration: none; }
+    .menu-foot .btn { flex: 0 0 auto; min-height: 44px; margin-left: auto; white-space: nowrap; }
   }
 
   /* Opening the menu slides the panel in, unless the reader has asked for less
