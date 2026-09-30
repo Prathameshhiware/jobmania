@@ -9,7 +9,7 @@
 // 429 and 5xx. Their robots.txt is empty (no restrictions), but we stay light.
 
 const BASE = 'https://foundthejob.com/wp-json/wp/v2';
-const UA = 'JoBmaniaBot/0.1 (+https://jobmania.example; discovery crawler; low rate)';
+const UA = 'JoBmaniaBot/0.1 (+https://jobmania.dpdns.org; discovery crawler; low rate)';
 const FIELDS = 'id,date,date_gmt,modified_gmt,link,title,content,categories';
 
 export const SOURCE_ID = 'foundthejob';

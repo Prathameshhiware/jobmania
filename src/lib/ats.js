@@ -6,7 +6,7 @@
 // for syndication, and it is the canonical text. Where we cannot, the record
 // stays in needs_review with facts only and no description at all.
 
-const UA = 'JoBmaniaBot/0.1 (+https://jobmania.example; job listing verification)';
+const UA = 'JoBmaniaBot/0.1 (+https://jobmania.dpdns.org; job listing verification)';
 
 export const ATS = [
   { id: 'greenhouse', test: /(?:^|\.)(?:boards|job-boards)\.greenhouse\.io$/i },
@@ -55,7 +55,13 @@ export async function checkLink(url) {
  */
 export async function fetchCanonical(applyUrl) {
   const ats = identifyAts(applyUrl);
-  if (!ats) return null;
+
+  // Not a platform we have an API for. Most of our apply links are an
+  // employer's own careers page, so this is the common case: try their
+  // published structured data and take nothing if there is none.
+  if (!ats) {
+    try { return await fetchJsonLdDescription(applyUrl); } catch { return null; }
+  }
 
   try {
     const u = new URL(applyUrl);
@@ -88,10 +94,103 @@ export async function fetchCanonical(applyUrl) {
       return { description_html: job.descriptionHtml, description_source: 'ashby', canonical_url: job.jobUrl ?? applyUrl };
     }
 
-    // Known ATS but no public per-job endpoint we can rely on. We keep the
-    // apply link and let the record stand on facts alone.
+    if (ats === 'workday') {
+      const wd = await fetchWorkday(u);
+      if (wd) return wd;
+    }
+
+    if (ats === 'smartrecruiters') {
+      // /<company>/<id>-<slug>
+      const m = u.pathname.match(/\/([^/]+)\/(\d{6,})/);
+      if (m) {
+        const r = await get(`https://api.smartrecruiters.com/v1/companies/${m[1]}/postings/${m[2]}`, { json: true });
+        const s = r.body?.jobAd?.sections;
+        const html = [s?.jobDescription?.text, s?.qualifications?.text, s?.additionalInformation?.text]
+          .filter(Boolean).join('\n');
+        if (r.ok && html) {
+          return { description_html: html, description_source: 'smartrecruiters', canonical_url: r.body?.applyUrl ?? applyUrl };
+        }
+      }
+    }
+
+    if (ats === 'workable') {
+      const m = u.pathname.match(/\/j\/([A-Z0-9]+)/i);
+      const sub = u.hostname.split('.')[0];
+      if (m && sub) {
+        const r = await get(`https://apply.workable.com/api/v1/accounts/${sub}/jobs/${m[1]}`, { json: true });
+        if (r.ok && r.body?.description) {
+          return { description_html: r.body.description, description_source: 'workable', canonical_url: applyUrl };
+        }
+      }
+    }
+
+    // Known ATS but no public per-job endpoint we can rely on. Fall through to
+    // the structured-data attempt below rather than giving up here.
+    const ld = await fetchJsonLdDescription(applyUrl);
+    if (ld) return { ...ld, description_source: `${ats}:jsonld` };
     return { description_html: null, description_source: ats, canonical_url: applyUrl };
   } catch {
     return null;
   }
+}
+
+/**
+ * Workday career sites render in the browser, so fetching the page returns an
+ * empty shell. Every one of them is backed by a JSON endpoint though:
+ *
+ *   public   https://{host}/{site}/job/{path}
+ *   json     https://{host}/wday/cxs/{tenant}/{site}/job/{path}
+ *
+ * where the tenant is the first label of the hostname. Measured against 10 real
+ * links from our own table this answers about a fifth of the time: several
+ * tenants return 403 to anything that is not a browser, and several of our
+ * apply links point at a search page rather than a specific job, which has no
+ * description to fetch. Worth doing for the ones that work, not worth
+ * pretending about for the ones that do not.
+ */
+async function fetchWorkday(u) {
+  const tenant = u.hostname.split('.')[0];
+  const parts = u.pathname.split('/').filter(Boolean);
+  const i = parts.indexOf('job');
+  if (i < 1) return null;                 // a listing page, not a job page
+  const site = parts[i - 1];
+  const api = `https://${u.hostname}/wday/cxs/${tenant}/${site}/${parts.slice(i).join('/')}`;
+  const r = await get(api, { json: true });
+  const html = r.body?.jobPostingInfo?.jobDescription;
+  if (!r.ok || !html) return null;
+  return { description_html: html, description_source: 'workday', canonical_url: u.href };
+}
+
+/**
+ * Last resort for a page we have no API for: read the employer's own
+ * JobPosting structured data if they publish it.
+ *
+ * This is not scraping the page's prose. JSON-LD is markup a site emits
+ * deliberately so that job boards and search engines can consume it, and the
+ * description inside it is the employer's own text, published for exactly this
+ * purpose. If it is absent we take nothing.
+ *
+ * Measured hit rate across 22 different employer hosts: 2. Most modern career
+ * sites render client-side, so there is nothing in the HTML to read.
+ */
+async function fetchJsonLdDescription(applyUrl) {
+  const r = await get(applyUrl, { json: false });
+  if (!r.ok || typeof r.body !== 'string') return null;
+
+  for (const block of r.body.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let parsed;
+    try { parsed = JSON.parse(block[1].trim()); } catch { continue; }
+    const stack = Array.isArray(parsed) ? [...parsed] : [parsed];
+    while (stack.length) {
+      const n = stack.pop();
+      if (!n || typeof n !== 'object') continue;
+      if (Array.isArray(n['@graph'])) stack.push(...n['@graph']);
+      const t = n['@type'];
+      const isJob = t === 'JobPosting' || (Array.isArray(t) && t.includes('JobPosting'));
+      if (isJob && n.description) {
+        return { description_html: String(n.description), description_source: 'jsonld', canonical_url: applyUrl };
+      }
+    }
+  }
+  return null;
 }
