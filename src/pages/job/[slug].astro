@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import JobCard from '../../components/JobCard.astro';
+import RelatedLinks from '../../components/RelatedLinks.astro';
 import { getJobBySlug, getSimilar, getByCompany, getAlternatives } from '../../lib/db.js';
 import {
   timeAgo, daysLeft, experienceLabel, salaryLabel, locationLabel,
@@ -330,6 +331,21 @@ const deadlineLabel = left == null ? null
       )}
     </aside>
   </div>
+  <RelatedLinks
+    title="Related searches"
+    links={[
+      job.city_primary && { href: `/city/${citySlug(job.city_primary)}`, label: `Jobs in ${job.city_primary}` },
+      job.city_primary && job.hiring_type === 'walk-in' && { href: `/city/${citySlug(job.city_primary)}/walk-ins`, label: `Walk-ins in ${job.city_primary}` },
+      job.company_slug && { href: `/company/${job.company_slug}`, label: `${job.company_name} careers` },
+      job.hiring_type === 'walk-in' && { href: '/c/walk-ins', label: 'Walk-in interviews in India' },
+      job.hiring_type === 'internship' && { href: '/c/internships', label: 'Internships in India' },
+      job.hiring_type === 'off-campus' && { href: '/c/off-campus', label: 'Off-campus drives' },
+      job.experience_level === 'fresher' && { href: '/c/freshers', label: 'Fresher jobs in India' },
+      job.is_remote && { href: '/c/remote', label: 'Work from home jobs' },
+      { href: '/c/just-posted', label: 'Just posted' },
+      { href: '/jobs', label: 'All live openings' },
+    ]}
+  />
 </Base>
 
 <style>

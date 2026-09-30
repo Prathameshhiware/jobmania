@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import RelatedLinks from '../../components/RelatedLinks.astro';
 import JobList from '../../components/JobList.astro';
 import { getByFacet, getLatest } from '../../lib/db.js';
 import { CATEGORIES, citySlug } from '../../lib/format.js';
@@ -65,6 +66,14 @@ const desc = descriptions.category(cat.phrase, cat.detail, total);
       ))}
     </div>
   </section>
+  <RelatedLinks
+    title="Browse elsewhere"
+    links={[
+      ...CATEGORIES.filter((c) => c.slug !== cat.slug).map((c) => ({ href: `/c/${c.slug}`, label: `${c.label} jobs` })),
+      ...facets.cities.slice(0, 4).map(([n]) => ({ href: `/city/${citySlug(n)}`, label: `Jobs in ${n}` })),
+      { href: '/jobs', label: 'All live openings' },
+    ]}
+  />
 </Base>
 
 <style>

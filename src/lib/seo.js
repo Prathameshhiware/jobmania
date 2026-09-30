@@ -18,7 +18,23 @@ const n = (v) => Number(v ?? 0).toLocaleString('en-IN');
 /* ------------------------------------------------------------- titles --- */
 
 export const titles = {
-  home: (c) => `${SITE_NAME}: ${n(c)} Verified Job Openings in India | Freshers, Walk-ins, Remote`,
+  /*
+   * Leads with walk-ins rather than "jobs in India", and puts the brand last.
+   *
+   * Two reasons. "Jobs in India" is held by Naukri, Indeed, LinkedIn and Shine;
+   * a domain this new does not take that phrase from them at any point in the
+   * next year, and pointing the homepage at it means ranking for nothing.
+   * Walk-in interviews are 177 of the 447 listings we have handled, the largest
+   * single category, and the sites competing on that phrase are far weaker.
+   *
+   * The brand moved to the end because nobody is searching for it yet. The
+   * first words of a title are the most valuable thing on the page and they
+   * were being spent on a name with no demand behind it.
+   *
+   * No count in the title either: it pushed the old one to 74 characters, past
+   * the ~60 Google renders, so the differentiators were cut off in results.
+   */
+  home: () => `Walk-In Interviews & Fresher Jobs in India | ${SITE_NAME}`,
 
   city: (city, c) => `Jobs in ${city}: ${n(c)} Verified Openings | ${SITE_NAME}`,
 
@@ -50,11 +66,12 @@ export const titles = {
 // two things that differentiate a result in a crowded SERP.
 
 export const descriptions = {
-  home: (c, today) =>
-    `Browse ${n(c)} verified job openings across India covering freshers, walk-in interviews, ` +
-    `off-campus drives, internships and work-from-home roles. Every listing is re-checked ` +
-    `daily against the employer's own careers page${today ? `, with ${n(today)} added today` : ''}. ` +
-    `Closed jobs are removed, never left up.`,
+  // The count lives here rather than in the title: a description has room for
+  // it, and a real number is the thing that separates this from every other
+  // job site making the same claim.
+  home: (c) =>
+    `${n(c)} live jobs in India: walk-in interviews, fresher jobs, off-campus drives and ` +
+    `work from home. Re-checked daily; closed jobs are removed, never left up.`,
 
   city: (city, c, types) =>
     `${n(c)} verified job openings in ${city}${types ? `, ${types}` : ''}. ` +

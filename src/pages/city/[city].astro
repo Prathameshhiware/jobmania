@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import RelatedLinks from '../../components/RelatedLinks.astro';
 import JobList from '../../components/JobList.astro';
 import { getByFacet, getFacets } from '../../lib/db.js';
 import { citySlug, CATEGORIES, TYPE_LABEL } from '../../lib/format.js';
@@ -48,6 +49,17 @@ const path = `/city/${city}`;
       ))}
     </div>
   </section>
+  <RelatedLinks
+    title={`More in ${name} and beyond`}
+    links={[
+      { href: `/city/${city}/walk-ins`, label: `Walk-in interviews in ${name}` },
+      { href: `/city/${city}/internships`, label: `Internships in ${name}` },
+      { href: `/city/${city}/off-campus`, label: `Off-campus drives in ${name}` },
+      ...facets.cities.filter(([n]) => n !== name).slice(0, 5).map(([n]) => ({ href: `/city/${citySlug(n)}`, label: `Jobs in ${n}` })),
+      { href: '/c/freshers', label: 'Fresher jobs in India' },
+      { href: '/jobs', label: 'All live openings' },
+    ]}
+  />
 </Base>
 
 <style>

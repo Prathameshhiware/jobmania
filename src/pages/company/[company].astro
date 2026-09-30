@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import JobList from '../../components/JobList.astro';
+import RelatedLinks from '../../components/RelatedLinks.astro';
 import { getByCompany } from '../../lib/db.js';
 
 import {
@@ -39,6 +40,16 @@ const path = `/company/${company}`;
       </div>
     </section>
   )}
+  <RelatedLinks
+    title={`More ways to search`}
+    links={[
+      ...cities.slice(0, 4).map((c) => ({ href: `/city/${citySlug(c)}`, label: `Jobs in ${c}` })),
+      { href: '/c/freshers', label: 'Fresher jobs in India' },
+      { href: '/c/walk-ins', label: 'Walk-in interviews' },
+      { href: '/c/just-posted', label: 'Just posted' },
+      { href: '/jobs', label: 'All live openings' },
+    ]}
+  />
 </Base>
 
 <style>

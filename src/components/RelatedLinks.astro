@@ -1,0 +1,34 @@
+---
+// A block of related searches, shown at the foot of a page.
+//
+// Two jobs, and the second is the reason it exists. For a reader it is the
+// obvious next question after "this one is not for me". For a crawler it is
+// how 202 job pages stop being dead ends: before this, a job page carried
+// three links of its own beyond the nav, so nothing flowed from the pages that
+// make up most of the site to the pages meant to rank.
+//
+// Every link is built from facts already on the row, and a link is only
+// rendered when its target exists. A related-links block full of pages with
+// nothing on them is worse than none, for the reader and for the crawl.
+const { title = 'Related searches', links = [] } = Astro.props;
+const real = links.filter((l) => l && l.href && l.label);
+---
+{real.length > 0 && (
+  <nav class="related" aria-label={title}>
+    <h2>{title}</h2>
+    <div class="chips">
+      {real.map((l) => <a href={l.href}>{l.label}</a>)}
+    </div>
+  </nav>
+)}
+
+<style>
+  .related { padding-block: 48px 0; }
+  .related h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 14px; }
+  .chips { display: flex; gap: 9px; flex-wrap: wrap; }
+  .chips a {
+    display: inline-flex; align-items: center; min-height: 40px; padding-inline: 15px;
+    border-radius: 999px; background: var(--glass-chip); border: 1px solid var(--glass-edge);
+    font-size: 13.5px; font-weight: 500; color: var(--ink-2); text-decoration: none;
+  }
+</style>
