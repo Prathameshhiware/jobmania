@@ -155,6 +155,32 @@ Lever, Ashby and SmartRecruiters all publish open JSON.
 
 ---
 
+## Google Indexing API (optional)
+
+Google restricts this API to two content types and `JobPosting` is one of them.
+It gets a new listing crawled in minutes rather than days, and — the half that
+matters more here — lets a closed listing be dropped from results the hour it
+closes instead of whenever Google would next have revisited.
+
+Wired into the pipeline already: `ingest.js` submits `URL_UPDATED` for anything
+that goes live, `expire.js` submits `URL_DELETED` for anything delisted in the
+last 36 hours. Both are best-effort and never fail the run.
+
+It stays switched off until `GOOGLE_INDEXING_CREDENTIALS` exists, so the
+pipeline behaves identically whether or not you set this up.
+
+1. Verify the property in **Google Search Console** first.
+2. In **Google Cloud Console**: create a project, enable **Indexing API**, create
+   a **service account**, and download its JSON key.
+3. Back in Search Console: *Settings → Users and permissions → Add user*, paste
+   the service account's `client_email`, role **Owner**. Google rejects the API
+   otherwise.
+4. Set the whole JSON key file, as one line, as `GOOGLE_INDEXING_CREDENTIALS`:
+   a GitHub repository secret (for the workflows) and a Vercel environment
+   variable (for the minute-by-minute poll).
+
+Quota is 200 URLs a day, comfortably above what this site produces.
+
 ## The website
 
 Astro, server-rendered, deployed on Vercel. It reads the same Supabase database

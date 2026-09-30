@@ -5,6 +5,7 @@
 // apply link that resolved and did not 404. Everything else waits in
 // needs_review for a human, which is the honest outcome.
 
+import { notifyMany, indexingEnabled } from './indexing.js';
 import { db } from './supabase.js';
 import { extractJob } from './extract.js';
 import { fetchCanonical, checkLink, identifyAts } from './ats.js';
@@ -12,7 +13,12 @@ import { sanitizeJobHtml } from './sanitize.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const SITE = (process.env.SITE_URL ?? 'https://jobmania.dpdns.org').replace(/\/$/, '');
+
 export async function ingestPosts(posts, categories, { resolve = true, log = console.log } = {}) {
+  // Listings published in this run, so Google can be told once at the end
+  // rather than mid-loop where a slow call would hold up the ingest.
+  const published = [];
   const stats = { seen: posts.length, added: 0, duplicate: 0, unusable: 0, live: 0, review: 0, flagged: 0 };
   if (!posts.length) return stats;
 
@@ -105,8 +111,17 @@ export async function ingestPosts(posts, categories, { resolve = true, log = con
     });
 
     stats.added++;
-    if (inserted.status === 'live') stats.live++; else stats.review++;
+    if (inserted.status === 'live') { stats.live++; published.push(`${SITE}/job/${row.slug}`); }
+    else stats.review++;
     log(`  + [${inserted.status}] ${row.company_name} — ${row.title}${row.city_primary ? ` (${row.city_primary})` : ''}`);
+  }
+
+  // Best-effort, and deliberately last. A listing is live whether or not
+  // Google accepts the ping, so nothing here is allowed to fail the run.
+  if (published.length && indexingEnabled()) {
+    const r = await notifyMany(published, 'URL_UPDATED');
+    stats.indexed = r.sent;
+    if (r.sent) log(`  google: ${r.sent} submitted for indexing`);
   }
 
   return stats;

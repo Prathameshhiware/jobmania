@@ -7,6 +7,7 @@
 
 import { db } from './lib/supabase.js';
 import { checkLink } from './lib/ats.js';
+import { notifyMany, indexingEnabled } from './lib/indexing.js';
 
 const LIMIT = Number(process.env.CHECK_LIMIT ?? 250);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -52,6 +53,22 @@ for (const job of due ?? []) {
 }
 
 console.log(`links checked: ${due?.length ?? 0}  ·  alive ${alive}  ·  dead ${dead}`);
+
+// 3. tell Google what left, so a closed listing drops out of results now
+//    rather than whenever it would next have been recrawled. This is the half
+//    of the Indexing API that matters most for a site whose claim is freshness.
+if (indexingEnabled()) {
+  const SITE = (process.env.SITE_URL ?? 'https://jobmania.dpdns.org').replace(/\/$/, '');
+  const { data: gone } = await db
+    .from('jobs').select('slug')
+    .in('status', ['expired', 'dead_link'])
+    .gte('updated_at', new Date(Date.now() - 36 * 3600e3).toISOString())
+    .limit(180);
+  if (gone?.length) {
+    const r = await notifyMany(gone.map((g) => `${SITE}/job/${g.slug}`), 'URL_DELETED');
+    console.log(`google: ${r.sent} delistings submitted (${r.failed} failed)`);
+  }
+}
 
 const { count } = await db.from('jobs').select('id', { count: 'exact', head: true }).eq('status', 'live');
 console.log(`live now: ${count ?? 0}\n`);
