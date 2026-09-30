@@ -159,13 +159,13 @@ export async function getFacets() {
  * can say *why* each one went — finished drive, passed deadline, or an apply
  * link that stopped responding.
  */
-export async function getRecentlyClosed(limit = 40) {
+export async function getRecentlyClosed(limit = 40, offset = 0) {
   const { data } = await sb
     .from('jobs')
     .select(`${CARD}, status, review_reason, last_checked_at`)
     .in('status', ['expired', 'dead_link'])
     .order('valid_through', { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
   return data ?? [];
 }
 
