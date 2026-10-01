@@ -121,6 +121,12 @@ a { color: var(--accent); }
   background: var(--glass-chip); border: 1px solid var(--glass-edge); color: var(--ink-2);
   font-size: 13px; font-weight: 500; padding: 9px 15px; border-radius: 12px;
   text-decoration: none; display: inline-block;
+  /* Qualification chips carry whatever the employer wrote, and employers write
+     things like B.E/B.Tech/BA/B.Com/BBA/B.Sc/BCA/M.E/M.Tech/MCA/MA/M.Com/M.S.
+     There is not a single space in that, so nothing can wrap it, and on a phone
+     one chip was 541px wide inside a 375px screen and pushed the whole page
+     sideways. anywhere lets the browser break mid-token when it has to. */
+  max-width: 100%; overflow-wrap: anywhere;
 }
 .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--ok); flex: none; display: inline-block; }
 .status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ok-ink); }
