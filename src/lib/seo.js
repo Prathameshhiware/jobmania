@@ -65,47 +65,66 @@ export const titles = {
 // Each leads with the count and the verification claim, because those are the
 // two things that differentiate a result in a crowded SERP.
 
+/**
+ * Google renders roughly 155 characters before it truncates, and a description
+ * cut off mid-word reads as carelessness on a page asking someone to trust it.
+ *
+ * Every description here is assembled from live counts, city names and category
+ * clauses, so a template that fits today overflows the moment a city with a
+ * longer name leads the list. This is the backstop, not the first defence: the
+ * templates below are written short, and this catches the rest. It prefers to
+ * end on a sentence, falls back to a word boundary, and never leaves dangling
+ * punctuation.
+ */
+const LIMIT = 155;
+const clamp = (text) => {
+  const t = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (t.length <= LIMIT) return t;
+  const cut = t.slice(0, LIMIT);
+  const sentence = cut.lastIndexOf('. ');
+  if (sentence > 95) return cut.slice(0, sentence + 1);
+  const space = cut.lastIndexOf(' ');
+  return (space > 95 ? cut.slice(0, space) : cut).replace(/[,;:.\s]+$/, '') + '…';
+};
+
 export const descriptions = {
   // The count lives here rather than in the title: a description has room for
   // it, and a real number is the thing that separates this from every other
   // job site making the same claim.
   home: (c) =>
-    `${n(c)} live jobs in India: walk-in interviews, fresher jobs, off-campus drives and ` +
-    `work from home. Re-checked daily; closed jobs are removed, never left up.`,
+    clamp(`${n(c)} live jobs in India: walk-in interviews, fresher jobs, off-campus drives and ` +
+      `work from home. Re-checked daily, closed jobs removed.`),
 
   city: (city, c, types) =>
-    `${n(c)} verified job openings in ${city}${types ? `, ${types}` : ''}. ` +
-    `Each apply link is tested daily and closed roles are removed within 24 hours, ` +
-    `so every listing you see in ${city} is genuinely still open.`,
+    clamp(`${n(c)} verified job openings in ${city}${types ? `, ${types}` : ''}. ` +
+      `Apply links tested daily and closed roles removed within 24 hours.`),
 
   // `phrase` is already a noun phrase — appending "openings" to it produced
   // "walk in interviews openings", so nothing is appended.
   category: (phrase, detail, c) =>
-    `${n(c)} live ${phrase.toLowerCase()} across India, each verified against the employer's ` +
-    `own careers page and re-checked daily. ${detail}`,
+    clamp(`${n(c)} live ${phrase.toLowerCase()} across India, verified against the employer's ` +
+      `own careers page. ${detail}`),
 
   // `detail` is the category's own clause, so a freshers page no longer talks
   // about venues and a walk-in page still does.
   cityCategory: (city, phrase, detail, c) =>
-    `${n(c)} ${phrase.toLowerCase()} in ${city}, verified against each employer's own careers ` +
-    `page and re-checked daily. ${detail}`,
+    clamp(`${n(c)} ${phrase.toLowerCase()} in ${city}, verified against the employer's own ` +
+      `careers page. ${detail}`),
 
   allJobs: (c, cities) =>
-    `Every one of the ${n(c)} job openings currently live on ${SITE_NAME}, newest first` +
-    `${cities ? `, across ${cities}` : ''}. Each apply link is tested daily and closed roles ` +
-    `are removed within 24 hours.`,
+    clamp(`All ${n(c)} job openings live on ${SITE_NAME}, newest first` +
+      `${cities ? `, across ${cities}` : ''}. Apply links tested daily, closed roles removed.`),
 
   company: (name, c, cities) =>
-    `${n(c)} current openings at ${name}${cities ? ` across ${cities}` : ''}. ` +
-    `We link to ${name}'s own application pages and remove roles once they close. ` +
-    `Not affiliated with ${name}.`,
+    clamp(`${n(c)} current openings at ${name}${cities ? ` across ${cities}` : ''}. ` +
+      `We link to ${name}'s own application pages. Not affiliated with ${name}.`),
 
   job: (fact, company, verified) =>
-    `${fact} Apply on ${company}'s official page. Verified ${verified}.`,
+    clamp(`${fact} Apply on ${company}'s official page. Verified ${verified}.`),
 
   jobClosed: (reason, company, city) =>
-    `${reason} This ${company} opening is no longer accepting applications. ` +
-    `See what is currently open${city ? ` in ${city}` : ''} on ${SITE_NAME}.`,
+    clamp(`${reason} This ${company} opening is no longer accepting applications. ` +
+      `See what is open${city ? ` in ${city}` : ''} on ${SITE_NAME}.`),
 };
 
 /* -------------------------------------------------------------- schema --- */
