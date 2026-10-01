@@ -117,13 +117,28 @@ deliberate: the whole product claim is that our listings are real.
 
 ## Scheduling
 
-`monitor.yml` runs every 10 minutes; the source publishes roughly one post per
-10–15 minutes during business hours, so new openings appear here within minutes.
-Actions minutes are unlimited on a public repo. GitHub's scheduler is
-best-effort and can run late — the stored cursor means a late run just collects
-everything it missed.
+Every recurring job is driven by `pg_cron` inside Supabase, which calls a
+token-protected endpoint on the site with `pg_net`. Nothing is scheduled on
+GitHub Actions. The reason is measured rather than theoretical: a workflow here
+asked for every five minutes and GitHub delivered every three to six hours,
+because it deprioritises frequent cron on free runners. Vercel's own cron is
+once a day on the Hobby plan. pg_cron has kept time to the second across
+thousands of runs on this project.
 
-`expire.yml` runs daily at 07:00 IST.
+| Job | Cadence | Endpoint | Defined in |
+|---|---|---|---|
+| Poll the source | every minute | `/api/ingest` | `db/005-realtime-ingest.sql` |
+| Freshness pass | every 30 minutes | `/api/expire` | `db/010-schedules.sql` |
+| Weekly roundup | Sunday 04:30 UTC | `/api/roundup` | `db/010-schedules.sql` |
+
+All three share one secret, kept in Supabase Vault as `jobmania_ingest_secret`
+and matched against `INGEST_SECRET` in Vercel. Each endpoint is idempotent, so
+a late run, a retry or a double fire costs nothing: the poll works from a stored
+cursor, the freshness pass takes the least recently checked rows, and the
+roundup treats an existing post for that date as success.
+
+`src/monitor.js` and `src/expire.js` remain as commands for running either
+pass by hand, which is useful after a backfill.
 
 ---
 
