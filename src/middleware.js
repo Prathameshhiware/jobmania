@@ -48,6 +48,27 @@ const PERMISSIONS = [
 ].join(', ');
 
 export async function onRequest(context, next) {
+  /*
+   * One address per page.
+   *
+   * /jobs and /jobs/ both answered 200, and each told Google it was the
+   * canonical one, so the same page could be indexed twice and split its own
+   * ranking. Every internal link and every sitemap entry already uses the form
+   * without the trailing slash, so that is the one that wins.
+   *
+   * A redirect rather than a canonical tag: a canonical is advice a search
+   * engine may ignore, while this means the duplicate cannot be reached at all.
+   * 308 rather than 301 so the method and body survive, which matters because
+   * the scheduled POSTs to /api/* go through here too.
+   */
+  const { pathname, search } = context.url;
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    return new Response(null, {
+      status: 308,
+      headers: { Location: pathname.replace(/\/+$/, '') + search },
+    });
+  }
+
   const response = await next();
   const h = response.headers;
 
