@@ -43,9 +43,10 @@ export async function POST({ request }) {
   try {
     const result = await expirePass({
       limit: Number(env('CHECK_LIMIT') ?? 40),
-      // Comfortably inside the 60s ceiling set in astro.config.mjs, with room
-      // for the queries either side of the link checks.
-      budgetMs: 45000,
+      // The first scheduled run finished 54 seconds into a 60 second ceiling,
+      // which is not margin, it is luck. 35 seconds for the link checks leaves
+      // the daily snapshot and the closing count somewhere to go.
+      budgetMs: 35000,
       // One pass only has to cover what left since the last one. A 36 hour
       // window at this cadence would resubmit the same delistings 70 times.
       delistWindowHours: 2,

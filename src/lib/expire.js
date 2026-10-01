@@ -24,6 +24,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function expirePass({
   limit = 40,
+  concurrency = 5,
   budgetMs = 45000,
   delistWindowHours = 36,
   snapshot = true,
@@ -55,23 +56,40 @@ export async function expirePass({
     .limit(limit);
   if (e2) throw new Error(`due: ${e2.message}`);
 
-  for (const job of due ?? []) {
-    if (Date.now() - started > budgetMs) { out.stoppedEarly = true; break; }
-    const probe = await checkLink(job.apply_url);
-    out.checked++;
-    if (probe.alive) {
-      out.alive++;
-      await db.from('jobs').update({ last_checked_at: now, last_verified_at: now }).eq('id', job.id);
-    } else {
-      out.dead++;
-      await db.from('jobs').update({
-        status: 'dead_link', last_checked_at: now,
-        review_reason: `apply link returned ${probe.status}`,
-      }).eq('id', job.id);
-      log(`  dead (${probe.status}): ${job.company_name} — ${job.title}`);
+  /*
+   * Checked a few at a time rather than one after another. Measured on the
+   * first scheduled run: a probe averages about 2.6 seconds, so sequentially
+   * only 17 of the 40 got done before the time budget stopped the pass. The
+   * workers pull from one shared queue, so a slow link delays itself rather
+   * than everything behind it.
+   *
+   * Five is deliberately modest. These are other people's careers pages and
+   * the point is to notice a dead link, not to hammer anybody; the pause
+   * between a worker's own requests is kept for the same reason.
+   */
+  const queue = [...(due ?? [])];
+  const worker = async () => {
+    while (queue.length) {
+      if (Date.now() - started > budgetMs) { out.stoppedEarly = true; return; }
+      const job = queue.shift();
+      if (!job) return;
+      const probe = await checkLink(job.apply_url);
+      out.checked++;
+      if (probe.alive) {
+        out.alive++;
+        await db.from('jobs').update({ last_checked_at: now, last_verified_at: now }).eq('id', job.id);
+      } else {
+        out.dead++;
+        await db.from('jobs').update({
+          status: 'dead_link', last_checked_at: now,
+          review_reason: `apply link returned ${probe.status}`,
+        }).eq('id', job.id);
+        log(`  dead (${probe.status}): ${job.company_name} — ${job.title}`);
+      }
+      await sleep(200);
     }
-    await sleep(200);
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker));
   log(`links checked: ${out.checked} · alive ${out.alive} · dead ${out.dead}${out.stoppedEarly ? ' (time budget reached)' : ''}`);
 
   // 3. tell Google what left, so a closed listing drops out of results now
