@@ -20,6 +20,11 @@ Astro.response.headers.set('Cache-Control', `public, max-age=0, s-maxage=${maxAg
 const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/$/, '');
 const href = canonical ?? new URL(Astro.url.pathname, `${origin}/`).href;
 const blocks = (Array.isArray(schema) ? schema : [schema]).filter(Boolean);
+
+// Analytics only in production, and only when an id is configured.
+const GA_ID = import.meta.env.PROD
+  ? (import.meta.env.PUBLIC_GA_ID ?? process.env?.PUBLIC_GA_ID ?? null)
+  : null;
 ---
 <!doctype html>
 <html lang="en-IN">
@@ -41,6 +46,27 @@ const blocks = (Array.isArray(schema) ? schema : [schema]).filter(Boolean);
   <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#262338">
+
+  {/* Google Analytics.
+      Gated on the measurement id existing AND the build being production, so a
+      dev server or a preview deployment never writes into the same property as
+      real traffic. The id lives in an environment variable rather than the
+      source: it is not a secret, but keeping it out of the repo means a second
+      environment can point somewhere else without a code change.
+      googletagmanager.com is the one external script host allowed by the CSP in
+      middleware.js; without that entry this is blocked and silently does
+      nothing. */}
+  {GA_ID && (
+    <>
+      <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}></script>
+      <script is:inline define:vars={{ GA_ID }}>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', GA_ID);
+      </script>
+    </>
+  )}
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="JoBmania">

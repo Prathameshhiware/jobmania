@@ -8,21 +8,25 @@
 const CSP = [
   "default-src 'self'",
 
-  // No external script hosts at all. 'unsafe-inline' is required because the
-  // page carries inline JSON-LD blocks and the visitor-count script; moving to
-  // a per-request nonce is the obvious next hardening step, and is only worth
-  // doing once the script inventory stops changing.
-  "script-src 'self' 'unsafe-inline'",
+  // One external script host, and it is there because Google Analytics cannot
+  // work without it. 'unsafe-inline' is required because the page carries
+  // inline JSON-LD blocks and the visitor-count script; moving to a per-request
+  // nonce is the obvious next hardening step, and is only worth doing once the
+  // script inventory stops changing.
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
 
   // Astro emits scoped <style> blocks and the design uses inline style
   // attributes, so inline styles cannot be blocked without rewriting both.
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
 
-  "img-src 'self' data:",
-  // Only same-origin XHR: every Supabase call happens server-side, so the
-  // browser never needs to reach the database host.
-  "connect-src 'self'",
+  // Analytics still falls back to a tracking pixel in some browsers, so the
+  // image hosts have to be allowed alongside the script.
+  "img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com",
+  // Same-origin XHR plus the analytics endpoints. Every Supabase call still
+  // happens server-side, so the browser never reaches the database host; these
+  // three are the only outbound destinations a visitor's browser is allowed.
+  "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
 
   "form-action 'self'",
   "base-uri 'self'",
