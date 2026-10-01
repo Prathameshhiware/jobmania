@@ -21,7 +21,7 @@ const closingLabel = left == null ? null
 // the closed listing carries `status`, so live cards are untouched.
 const isClosed = job.status === 'expired' || job.status === 'dead_link';
 const closedWhen = job.valid_through
-  ? new Date(job.valid_through).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  ? new Date(job.valid_through).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' })
   : null;
 const closedWhy = !isClosed ? null
   : job.status === 'dead_link' ? 'Employer took the page down'

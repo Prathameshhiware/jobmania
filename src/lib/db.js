@@ -3,6 +3,7 @@
 // forgets to filter. The service_role key never touches the website.
 
 import { createClient } from '@supabase/supabase-js';
+import { istMidnight, istDatePlus } from './ist.js';
 
 const env = (k) => import.meta.env?.[k] ?? process.env?.[k];
 
@@ -130,8 +131,11 @@ export async function getFacets() {
   const tally = (key) => rows.reduce((a, r) => (r[key] && (a[r[key]] = (a[r[key]] ?? 0) + 1), a), {});
   const sorted = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]);
 
-  const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  // Midnight in India. setHours() would use the server's timezone, which on
+  // Vercel is UTC, so "added today" on the homepage silently meant "added since
+  // 05:30 this morning" and read zero for the first hours of every Indian day.
+  const midnight = istMidnight();
+  const weekEnd = istDatePlus(7);
 
   const companies = rows.reduce((a, r) => {
     if (!r.company_slug) return a;

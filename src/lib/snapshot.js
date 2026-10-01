@@ -9,13 +9,16 @@
 // the site. The less important job must not be able to break the important one.
 
 import { db } from './supabase.js';
+import { istDate } from './ist.js';
 
 const tally = (rows, key) =>
   rows.reduce((a, r) => (r[key] && (a[r[key]] = (a[r[key]] ?? 0) + 1), a), {});
 
 export async function recordSnapshot(log = console.log, { onlyIfMissing = false } = {}) {
   try {
-    const day = new Date().toISOString().slice(0, 10);
+    // India's date, so the photograph is filed under the day it was taken
+    // there rather than under yesterday for the first five and a half hours.
+    const day = istDate();
 
     // The expiry pass now runs every half hour rather than once a day, and a
     // snapshot is meant to be one photograph per day taken at a consistent

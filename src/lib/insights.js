@@ -57,7 +57,9 @@ export const articlePath = (entry) => `/insights/${KINDS[entry.data.kind].slug}/
 
 export const fmtDate = (d) =>
   d instanceof Date && !Number.isNaN(+d)
-    ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? d.toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata',
+      })
     : null;
 
 /**

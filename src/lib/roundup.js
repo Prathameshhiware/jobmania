@@ -22,13 +22,14 @@
 
 import { db } from './supabase.js';
 import { weeklyNews } from './news.js';
+import { istDate, istDatePlus, istLong, istShort } from './ist.js';
 
-const iso = (d) => d.toISOString().slice(0, 10);
-
-const longDate = (d) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-const shortDate = (d) =>
-  new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+// Dates are India's, not the server's. The post is built at 10:00 IST, but a
+// retry or a hand-run after midnight would otherwise carry the previous day's
+// date and land at the previous day's URL.
+const iso = istDate;
+const longDate = istLong;
+const shortDate = istShort;
 
 const n = (v) => Number(v ?? 0).toLocaleString('en-IN');
 
@@ -104,9 +105,9 @@ const rows2 = (pairs) =>
  * is unreachable; a week with no usable news produces a post that says so.
  */
 export async function buildRoundup({ now = new Date() } = {}) {
-  const today = iso(now);
-  const weekAgo = iso(new Date(now.getTime() - 7 * 864e5));
-  const inAWeek = iso(new Date(now.getTime() + 7 * 864e5));
+  const today = istDate(now);
+  const weekAgo = istDatePlus(-7, now);
+  const inAWeek = istDatePlus(7, now);
 
   const [jobsRes, histRes, news] = await Promise.all([
     db.from('jobs')
@@ -114,7 +115,7 @@ export async function buildRoundup({ now = new Date() } = {}) {
       .limit(5000),
     db.from('daily_stats')
       .select('*')
-      .gte('day', iso(new Date(now.getTime() - 35 * 864e5)))
+      .gte('day', istDatePlus(-35, now))
       .order('day', { ascending: true }),
     weeklyNews(10),
   ]);

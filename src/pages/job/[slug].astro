@@ -43,7 +43,7 @@ const where = locationLabel(job);
 const walkin = walkinLabel(job);
 const stated = hasStatedDeadline(job);
 const left = stated ? daysLeft(job.valid_through) : null;
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' }) : null;
 
 // Facts, restated. Every clause below is a stored field — nothing inferred.
 const factSentence = [
