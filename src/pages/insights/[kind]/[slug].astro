@@ -114,18 +114,21 @@ const articleSchema = {
             <li><a href={s.url} rel="nofollow noopener noreferrer" target="_blank">{s.label}</a></li>
           ))}
         </ol>
-
-        {/* Deliberately quiet. It is a standing offer to the publishers we
-            cite, not a disclaimer aimed at the reader, so it sits at the foot
-            of the sources at a size that does not compete with the article. */}
-        <p class="rights">
-          Figures in this article are taken from the reports linked above and are credited to
-          their publishers. If you own one of these sources and would rather we did not
-          reference it, write to <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and we
-          will remove it.
-        </p>
       </section>
     )}
+
+    {/* Deliberately quiet. It is a standing offer to the publishers we cite,
+        not a disclaimer aimed at the reader, so it sits at the foot of the page
+        at a size that does not compete with the article. Rendered on every
+        piece rather than only the ones with a Sources list: the weekly roundup
+        carries its references inline in the text, and that is the page most in
+        need of the notice. */}
+    <p class="rights">
+      Headlines, figures and quotations in this article belong to the publishers linked
+      {d.sources.length > 0 ? ' above' : ' in the text above'}, and are credited to them. If you
+      own one of these sources and would rather we did not reference it, write to{' '}
+      <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and we will remove it.
+    </p>
 
     <aside class="ledger">
       <h2>How to read this</h2>
@@ -204,7 +207,7 @@ const articleSchema = {
   /* 11.5px is small without going under what a phone can comfortably render;
      anything less and it stops being a notice and starts being hidden. */
   .rights {
-    margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--hairline);
+    margin: 20px 0 0; padding-top: 14px; border-top: 1px solid var(--hairline);
     font-size: 11.5px; line-height: 1.65; color: var(--ink-4);
     max-width: 68ch; overflow-wrap: break-word;
   }
