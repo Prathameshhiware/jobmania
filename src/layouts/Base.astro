@@ -59,12 +59,16 @@ const GA_ID = import.meta.env.PROD
   {GA_ID && (
     <>
       <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}></script>
-      <script is:inline define:vars={{ GA_ID }}>
+      {/* set:html rather than define:vars, because define:vars wraps the body
+          in a block and gtag ends up scoped to it. Page views still fire, but
+          nothing else on the site can call gtag() afterwards, which quietly
+          rules out tracking an apply click or any other custom event later. */}
+      <script is:inline set:html={`
         window.dataLayer = window.dataLayer || [];
-        function gtag(){ dataLayer.push(arguments); }
+        window.gtag = function(){ window.dataLayer.push(arguments); };
         gtag('js', new Date());
-        gtag('config', GA_ID);
-      </script>
+        gtag('config', '${GA_ID}');
+      `}></script>
     </>
   )}
 

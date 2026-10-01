@@ -8,6 +8,7 @@
 import { db } from './lib/supabase.js';
 import { checkLink } from './lib/ats.js';
 import { notifyMany, indexingEnabled } from './lib/indexing.js';
+import { recordSnapshot } from './lib/snapshot.js';
 
 const LIMIT = Number(process.env.CHECK_LIMIT ?? 250);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -69,6 +70,10 @@ if (indexingEnabled()) {
     console.log(`google: ${r.sent} delistings submitted (${r.failed} failed)`);
   }
 }
+
+// 4. photograph the table, so next week's roundup has something to compare
+//    against. Never throws: a missing data point must not stop the expiry pass.
+await recordSnapshot();
 
 const { count } = await db.from('jobs').select('id', { count: 'exact', head: true }).eq('status', 'live');
 console.log(`live now: ${count ?? 0}\n`);

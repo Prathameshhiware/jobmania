@@ -15,7 +15,8 @@
     "monitor": "node src/monitor.js",
     "expire": "node src/expire.js",
     "stats": "node src/stats.js",
-    "backfill:desc": "node src/backfill-descriptions.js"
+    "backfill:desc": "node src/backfill-descriptions.js",
+    "roundup": "node src/weekly-roundup.js"
   },
   "overrides": {
     "htmlparser2": "^9.1.0"
