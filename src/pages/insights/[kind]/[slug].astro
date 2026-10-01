@@ -7,6 +7,9 @@ import Base from '../../../layouts/Base.astro';
 import { KINDS, kindBySlug, articlePath, fmtDate, readingMinutes, publish } from '../../../lib/insights.js';
 import { breadcrumbSchema, faqSchema } from '../../../lib/seo.js';
 
+// One place, so changing where removal requests go is a one line edit.
+const CONTACT_EMAIL = 'connect@jobmania.dpdns.org';
+
 const kind = kindBySlug(Astro.params.kind);
 if (!kind) return Astro.rewrite('/404');
 
@@ -111,6 +114,16 @@ const articleSchema = {
             <li><a href={s.url} rel="nofollow noopener noreferrer" target="_blank">{s.label}</a></li>
           ))}
         </ol>
+
+        {/* Deliberately quiet. It is a standing offer to the publishers we
+            cite, not a disclaimer aimed at the reader, so it sits at the foot
+            of the sources at a size that does not compete with the article. */}
+        <p class="rights">
+          Figures in this article are taken from the reports linked above and are credited to
+          their publishers. If you own one of these sources and would rather we did not
+          reference it, write to <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and we
+          will remove it.
+        </p>
       </section>
     )}
 
@@ -188,6 +201,14 @@ const articleSchema = {
   .sources { border-radius: 20px; padding: 24px 26px; margin-top: 44px; }
   .sources h2 { font-size: 15px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 12px; }
   .sources ol { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8; }
+  /* 11.5px is small without going under what a phone can comfortably render;
+     anything less and it stops being a notice and starts being hidden. */
+  .rights {
+    margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--hairline);
+    font-size: 11.5px; line-height: 1.65; color: var(--ink-4);
+    max-width: 68ch; overflow-wrap: break-word;
+  }
+  .rights a { color: var(--ink-3); text-decoration: underline; text-underline-offset: 2px; }
   .sources a { color: var(--accent); }
 
   .ledger { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--hairline); }
