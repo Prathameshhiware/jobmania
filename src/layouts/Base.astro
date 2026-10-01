@@ -78,8 +78,17 @@ const GA_ID = import.meta.env.PROD
   <meta property="og:description" content={description}>
   <meta property="og:url" content={href}>
   <meta property="og:locale" content="en_IN">
-  <meta property="og:image" content={`${origin}/icon.svg`}>
-  <meta name="twitter:card" content="summary">
+  {/* A raster image, because WhatsApp, LinkedIn and Facebook will not render an
+      SVG preview and this used to point at icon.svg — so every link shared from
+      here, and in India that mostly means WhatsApp, arrived with no picture at
+      all. 800x420 is 1.9:1, which is the shape the large card wants. */}
+  <meta property="og:image" content={`${origin}/og.jpg`}>
+  <meta property="og:image:width" content="800">
+  <meta property="og:image:height" content="420">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:alt" content="JoBmania — verified job openings across India">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content={`${origin}/og.jpg`}>
   <meta name="twitter:title" content={title}>
   <meta name="twitter:description" content={description}>
 
