@@ -5,6 +5,7 @@
 import { getCollection, render } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import { KINDS, kindBySlug, articlePath, fmtDate, readingMinutes, publish } from '../../../lib/insights.js';
+import { generatedPost, generatedPosts } from '../../../lib/posts.js';
 import { breadcrumbSchema, faqSchema } from '../../../lib/seo.js';
 
 // One place, so changing where removal requests go is a one line edit.
@@ -13,11 +14,20 @@ const CONTACT_EMAIL = 'connect@jobmania.dpdns.org';
 const kind = kindBySlug(Astro.params.kind);
 if (!kind) return Astro.rewrite('/404');
 
-const all = publish(await getCollection('insights'));
-const entry = all.find((e) => e.id === Astro.params.slug && e.data.kind === kind);
+// Two homes, one section. Pieces a person wrote are markdown in the repo;
+// the weekly roundup is a row in the database, because without a CI runner
+// nothing can commit a file. Both arrive here in the same shape.
+const authored = await getCollection('insights');
+let entry = publish(authored).find((e) => e.id === Astro.params.slug && e.data.kind === kind);
+if (!entry) {
+  const row = await generatedPost(Astro.params.slug);
+  if (row && row.data.kind === kind) entry = row;
+}
 if (!entry) return Astro.rewrite('/404');
 
-const { Content } = await render(entry);
+// Authored markdown goes through Astro's renderer. A generated post is already
+// HTML, built by src/lib/roundup.js, and is set straight into the page.
+const Content = entry.generated ? null : (await render(entry)).Content;
 const meta = KINDS[kind];
 const d = entry.data;
 
@@ -25,8 +35,11 @@ const origin = (Astro.site?.origin ?? 'https://jobmania.dpdns.org').replace(/\/$
 const url = `${origin}${articlePath(entry)}`;
 const mins = readingMinutes(entry.body);
 
-// Same kind, newest first, this one excluded.
-const more = all.filter((e) => e.data.kind === kind && e.id !== entry.id).slice(0, 3);
+// Same kind, newest first, this one excluded. Drawn from both homes so a
+// roundup can point at an essay and an essay can point back.
+const more = publish([...authored, ...(await generatedPosts())])
+  .filter((e) => e.data.kind === kind && e.id !== entry.id)
+  .slice(0, 3);
 
 const articleSchema = {
   '@context': 'https://schema.org',
@@ -50,7 +63,13 @@ const articleSchema = {
   // is unfalsifiable, and an answer engine has no way to know it has gone stale.
   ...(d.dataAsOf ? { temporalCoverage: d.dataAsOf.toISOString().slice(0, 10) } : {}),
   ...(d.tags.length ? { keywords: d.tags.join(', ') } : {}),
-  ...(d.sources.length ? { citation: d.sources.map((s) => s.url) } : {}),
+  // A generated post cites its stories without listing them twice: the links
+  // are already in the body with their publisher and date.
+  ...(d.sources.length
+    ? { citation: d.sources.map((s) => s.url) }
+    : d.citations?.length
+      ? { citation: d.citations }
+      : {}),
 };
 ---
 <Base
@@ -86,7 +105,7 @@ const articleSchema = {
 
     </header>
 
-    <div class="prose"><Content /></div>
+    <div class="prose">{entry.generated ? <Fragment set:html={entry.html} /> : <Content />}</div>
 
     {/* Rendered as well as emitted as FAQPage schema. A question block a reader
         can actually see is what a search engine expands into a rich result, and

@@ -13,8 +13,20 @@ import { db } from './supabase.js';
 const tally = (rows, key) =>
   rows.reduce((a, r) => (r[key] && (a[r[key]] = (a[r[key]] ?? 0) + 1), a), {});
 
-export async function recordSnapshot(log = console.log) {
+export async function recordSnapshot(log = console.log, { onlyIfMissing = false } = {}) {
   try {
+    const day = new Date().toISOString().slice(0, 10);
+
+    // The expiry pass now runs every half hour rather than once a day, and a
+    // snapshot is meant to be one photograph per day taken at a consistent
+    // time. With this set, the first pass after midnight UTC records the day
+    // and the other forty-seven do nothing.
+    if (onlyIfMissing) {
+      const { count } = await db
+        .from('daily_stats').select('day', { count: 'exact', head: true }).eq('day', day);
+      if (count) return null;
+    }
+
     const { data, error } = await db
       .from('jobs')
       .select('status, hiring_type, experience_level, city_primary, is_remote, first_seen_at, description_html')
@@ -26,7 +38,7 @@ export async function recordSnapshot(log = console.log) {
     const dayAgo = new Date(Date.now() - 864e5);
 
     const row = {
-      day: new Date().toISOString().slice(0, 10),
+      day,
       live: live.length,
       needs_review: rows.filter((j) => j.status === 'needs_review').length,
       expired: rows.filter((j) => j.status === 'expired').length,

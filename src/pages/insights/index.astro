@@ -7,10 +7,11 @@
 // the first place that claim broke.
 import Base from '../../layouts/Base.astro';
 import { getCollection } from 'astro:content';
+import { generatedPosts } from '../../lib/posts.js';
 import { KINDS, KIND_ORDER, articlePath, fmtDate, publish } from '../../lib/insights.js';
 import { breadcrumbSchema, collectionPageSchema } from '../../lib/seo.js';
 
-const all = publish(await getCollection('insights'));
+const all = publish([...(await getCollection('insights')), ...(await generatedPosts())]);
 const latest = all.slice(0, 6);
 const countOf = (k) => all.filter((e) => e.data.kind === k).length;
 

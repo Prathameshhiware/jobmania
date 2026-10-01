@@ -70,8 +70,8 @@ Headlines and links only, from Indian newsrooms we keep on a short list. We do n
 | Live openings | 226 |
 | Open to freshers | 131 |
 | Walk-in roles | 49 |
-| Added in the last seven days | 226 |
-| Taken down in the last seven days | 225 |
+
+Arrivals and departures are not listed this week. Most of what is on the site came in as one import at launch, and counting first-seen dates across seven days would report that import as this week's news. Those two rows start once there are two snapshots a week apart to subtract.
 
 Counted from our own database on 1 October 2026. Listings come off when the drive finishes, the closing date passes, or the employer's application link stops responding, and we publish [every removal with its reason](/closed).
 

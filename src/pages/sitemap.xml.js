@@ -6,6 +6,7 @@ import { getCollection } from 'astro:content';
 import { getAllLive, getFacets } from '../lib/db.js';
 import { citySlug, CATEGORIES } from '../lib/format.js';
 import { KINDS, KIND_ORDER, articlePath, publish } from '../lib/insights.js';
+import { generatedPosts } from '../lib/posts.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -14,7 +15,7 @@ export async function GET({ site }) {
   const [jobs, facets, articles] = await Promise.all([
     getAllLive(),
     getFacets(),
-    getCollection('insights').then(publish),
+    Promise.all([getCollection('insights'), generatedPosts()]).then(([a, b]) => publish([...a, ...b])),
   ]);
 
   const url = (loc, lastmod, changefreq, priority) =>

@@ -5,6 +5,7 @@
 // thin pages entering the index drag down how the whole domain is judged; it
 // becomes indexable the moment it has something to show.
 import { getCollection } from 'astro:content';
+import { generatedPosts } from '../../../lib/posts.js';
 import Base from '../../../layouts/Base.astro';
 import { KINDS, KIND_ORDER, kindBySlug, articlePath, fmtDate, readingMinutes, publish } from '../../../lib/insights.js';
 import { breadcrumbSchema, collectionPageSchema } from '../../../lib/seo.js';
@@ -13,7 +14,11 @@ const kind = kindBySlug(Astro.params.kind);
 if (!kind) return Astro.rewrite('/404');
 
 const meta = KINDS[kind];
-const items = publish(await getCollection('insights')).filter((e) => e.data.kind === kind);
+// Authored markdown and machine-written posts, in one list. The roundup is
+// a database row rather than a file, but a reader should not be able to tell
+// from the index which is which.
+const items = publish([...(await getCollection('insights')), ...(await generatedPosts())])
+  .filter((e) => e.data.kind === kind);
 
 const origin = (Astro.site?.origin ?? 'https://jobmania.dpdns.org').replace(/\/$/, '');
 const others = KIND_ORDER.filter((k) => k !== kind);
