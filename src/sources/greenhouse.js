@@ -84,6 +84,16 @@ function experienceFromTitle(title) {
   return [null, null];
 }
 
+/**
+ * Titles that mean an internship rather than a permanent role.
+ *
+ * Written with explicit boundary groups instead of a word-boundary escape:
+ * an earlier version of this line had its escape mangled into a literal
+ * control character, which silently matched nothing, and the looser version
+ * without boundaries classed every "International Voice Process" role as an
+ * internship. Both failures were invisible until the counts were checked.
+ */
+const INTERNSHIP = /(^|[^a-z])(intern|internship|apprentice|trainee)([^a-z]|$)/i;
 async function board(token) {
   try {
     const res = await fetch(`${API}/${token}/jobs?content=true`, {
@@ -171,8 +181,13 @@ export function toRow(job, company) {
     // Greenhouse boards do not publish pay. Nothing is estimated.
     salary_min: null, salary_max: null, salary_currency: null, salary_period: null,
 
-    // Not a walk-in by definition: these are online applications.
-    hiring_type: remote ? 'work-from-home' : 'full-time',
+    /*
+     * The schema allows regular | walk-in | off-campus | internship, and a
+     * board role is never a walk-in: applying happens online, by definition.
+     * Remote is already carried by is_remote and work_mode, so it does not
+     * need a hiring type of its own.
+     */
+    hiring_type: INTERNSHIP.test(title) ? "internship" : "regular",
     experience_level: experienceLevel(min, max),
     work_mode: remote ? 'remote' : 'onsite',
 
@@ -212,12 +227,17 @@ export async function fetchOpenRoles(sinceIso = null, { boards = GREENHOUSE, log
   const since = sinceIso ? new Date(sinceIso) : null;
   const rows = [];
   const openUids = new Set();
+  // Only companies whose board actually answered. retireMissing() is scoped to
+  // these: a board having a bad minute must never be read as 'their jobs are
+  // gone', which would retire a live listing on a network blip.
+  const companies = [];
   let reached = 0;
 
   for (const b of boards) {
     const jobs = await board(b.token);
     if (!jobs) { log(`  ${b.name}: board did not answer`); continue; }
     reached++;
+    companies.push(b.name);
 
     let mine = 0;
     for (const job of jobs) {
@@ -231,5 +251,5 @@ export async function fetchOpenRoles(sinceIso = null, { boards = GREENHOUSE, log
   }
 
   rows.sort((a, b) => a.posted_at.localeCompare(b.posted_at));
-  return { rows, openUids, boardsReached: reached, boardsTotal: boards.length };
+  return { rows, openUids, companies, boardsReached: reached, boardsTotal: boards.length };
 }
