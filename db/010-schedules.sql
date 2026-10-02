@@ -19,7 +19,8 @@ create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
 -- ------------------------------------------------------- the weekly roundup
--- 04:30 UTC on Sunday is 10:00 IST. The endpoint builds the post from the jobs
+-- Sunday 10:00 am IST. pg_cron reads the expression in UTC, which is why it is
+-- written as 04:30. The endpoint builds the post from the jobs
 -- table and the news allowlist and writes it to generated_posts, where the site
 -- reads it; there is no deploy and no commit, so it is live within seconds.
 --

@@ -1,7 +1,7 @@
 // Builds the Sunday roundup. Returns a finished post; writes nothing.
 //
 // Two callers use this: the API route at /api/roundup, which pg_cron fires at
-// 04:30 UTC every Sunday, and `npm run roundup -- dry` for looking at it
+// 10:00 am IST every Sunday, and `npm run roundup -- dry` for looking at it
 // locally before it goes anywhere.
 //
 // Two kinds of content, and the difference matters because nobody reads this

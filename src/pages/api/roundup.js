@@ -1,5 +1,5 @@
-// Publishes the Sunday roundup. Fired by pg_cron inside Supabase at 04:30 UTC
-// every Sunday, which is 10:00 IST.
+// Publishes the Sunday roundup. Fired by pg_cron inside Supabase every Sunday
+// at 10:00 am IST.
 //
 // There is no CI runner in this path and no GitHub token to keep alive. The
 // clock lives in the database, the work happens here, and the post lands in

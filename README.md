@@ -125,11 +125,16 @@ because it deprioritises frequent cron on free runners. Vercel's own cron is
 once a day on the Hobby plan. pg_cron has kept time to the second across
 thousands of runs on this project.
 
+Every time in this repository is Indian Standard Time, because every reader of
+this site is in India. The one exception is the cron expression itself, which
+pg_cron evaluates in UTC: `30 4 * * 0` is Sunday 10:00 am IST, and it is written
+that way in `db/010-schedules.sql` with the IST meaning beside it.
+
 | Job | Cadence | Endpoint | Defined in |
 |---|---|---|---|
 | Poll the source | every minute | `/api/ingest` | `db/005-realtime-ingest.sql` |
 | Freshness pass | every 30 minutes | `/api/expire` | `db/010-schedules.sql` |
-| Weekly roundup | Sunday 04:30 UTC | `/api/roundup` | `db/010-schedules.sql` |
+| Weekly roundup | Sunday 10:00 am IST | `/api/roundup` | `db/010-schedules.sql` |
 
 All three share one secret, kept in Supabase Vault as `jobmania_ingest_secret`
 and matched against `INGEST_SECRET` in Vercel. Each endpoint is idempotent, so

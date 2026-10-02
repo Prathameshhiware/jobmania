@@ -22,8 +22,9 @@ export async function recordSnapshot(log = console.log, { onlyIfMissing = false 
 
     // The expiry pass now runs every half hour rather than once a day, and a
     // snapshot is meant to be one photograph per day taken at a consistent
-    // time. With this set, the first pass after midnight UTC records the day
-    // and the other forty-seven do nothing.
+    // time. With this set, the first pass after midnight IST records the day
+    // and the other forty-seven do nothing. Midnight IST, not UTC, because the
+    // day being photographed is an Indian one — istDate() decides which.
     if (onlyIfMissing) {
       const { count } = await db
         .from('daily_stats').select('day', { count: 'exact', head: true }).eq('day', day);
