@@ -1,4 +1,7 @@
-// Security headers on every response.
+import { clientIp, take, bucketFor } from './lib/ratelimit.js';
+
+// Security headers on every response, and a rate limit on the two paths that
+// cost something to serve.
 //
 // These are defence in depth. The actual holes — third-party HTML rendered raw,
 // and user input concatenated into a PostgREST filter — are closed at source in
@@ -67,6 +70,26 @@ export async function onRequest(context, next) {
       status: 308,
       headers: { Location: pathname.replace(/\/+$/, '') + search },
     });
+  }
+
+  /*
+   * Metered before anything else runs, so a blocked request costs a map lookup
+   * rather than a page render and a database query. Only the open counter
+   * endpoint and query-string requests are counted; see bucketFor() for why.
+   */
+  const bucket = bucketFor(pathname, search);
+  if (bucket) {
+    const { limited, retryAfter } = take(clientIp(context.request), bucket);
+    if (limited) {
+      return new Response('Too many requests. Try again shortly.', {
+        status: 429,
+        headers: {
+          'Retry-After': String(retryAfter),
+          'Cache-Control': 'no-store',
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+      });
+    }
   }
 
   const response = await next();
