@@ -27,6 +27,33 @@ function conn() {
 
 export const sb = new Proxy({}, { get: (_, prop) => conn()[prop] });
 
+
+/*
+ * Everything a visitor may see, named explicitly.
+ *
+ * Five columns are deliberately absent: dedupe_key, source, source_uid,
+ * source_url and description_source. Those record where a listing came from,
+ * which is ours and not the reader's business — and once db/012 restricts the
+ * anon role to this list at the database level, a select('*') here would fail
+ * outright rather than quietly leaking them.
+ *
+ * Keep this in step with the grant in db/012-hide-sources.sql. A column added
+ * to the table and wanted on the page has to be added in both places.
+ */
+const PUBLIC_COLUMNS = [
+  'id', 'short_id', 'slug', 'canonical_url',
+  'first_seen_at', 'last_checked_at', 'last_verified_at',
+  'company_name', 'company_slug', 'title',
+  'locations', 'city_primary', 'is_remote', 'lat', 'lng',
+  'exp_min', 'exp_max', 'qualification', 'eligible_batches',
+  'salary_min', 'salary_max', 'salary_currency', 'salary_period',
+  'hiring_type', 'experience_level', 'work_mode',
+  'walkin_start', 'walkin_end', 'walkin_time', 'walkin_venue',
+  'description_html', 'posted_at', 'valid_through',
+  'status', 'review_reason', 'scam_flags', 'report_count',
+  'apply_url', 'created_at', 'updated_at',
+].join(', ');
+
 const CARD = 'short_id, slug, company_name, company_slug, title, city_primary, is_remote, ' +
              'exp_min, exp_max, experience_level, qualification, hiring_type, work_mode, ' +
              'salary_min, salary_max, salary_currency, salary_period, ' +
@@ -64,7 +91,7 @@ export async function getClosingSoon(limit = 5) {
  * a closed one. Every LIST query still filters to 'live' explicitly.
  */
 export async function getJobBySlug(slug) {
-  const { data } = await sb.from('jobs').select('*').eq('slug', slug).maybeSingle();
+  const { data } = await sb.from('jobs').select(PUBLIC_COLUMNS).eq('slug', slug).maybeSingle();
   return data ?? null;
 }
 
