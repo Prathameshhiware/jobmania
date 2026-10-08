@@ -35,6 +35,7 @@ import { istDate, istDatePlus, istLong, istShort } from './ist.js';
 import { festivalOn } from './festivals.js';
 import { sarkariNotifications } from './sarkari.js';
 import { topicStories, matchKnownCompanies } from './feeds.js';
+import { GLOSSARY } from './glossary.js';
 
 const n = (v) => Number(v ?? 0).toLocaleString('en-IN');
 const SITE = 'jobmania.dpdns.org';
@@ -300,14 +301,69 @@ export const evergreen = (f) => {
  * reproducible when something needs checking afterwards.
  */
 function pillarEducation({ faqs, now }) {
-  const pool = (faqs ?? []).filter(evergreen);
-  if (!pool.length) return null;
   const day = Math.floor(Date.parse(istDate(now) + 'T00:00:00Z') / 864e5);
-  const pick = pool[day % pool.length];
-  if (!pick?.q || !pick?.a) return null;
+  const pool = (faqs ?? []).filter(evergreen);
 
+  /*
+   * Two kinds of education post, alternating on the day number rather than on
+   * the week, so they stay evenly mixed even when this pillar comes up as a
+   * fallback on some other weekday.
+   *
+   * Glossary first on even days. It is the half that teaches something the
+   * site does not otherwise say anywhere: we measured our own 405 descriptions
+   * and not one of them contains the word CTC.
+   */
+  const wantGlossary = day % 2 === 0;
+  const term = GLOSSARY.length ? GLOSSARY[Math.floor(day / 2) % GLOSSARY.length] : null;
+  if (wantGlossary && term) return glossaryPost(term);
+  if (pool.length) return faqPost(pool[Math.floor(day / 2) % pool.length]);
+  return term ? glossaryPost(term) : null;
+}
+
+/** One term from the glossary, defined. */
+function glossaryPost(t) {
+  const name = t.expand ? `${t.term} — ${t.expand}` : t.term;
+  const q = t.question ?? `What is ${t.term}?`;
   return {
     kind: 'education',
+    format: 'glossary',
+    // Statutory terms are prepared but never posted unattended. The definition
+    // is stable; the rates and thresholds behind it are not, and a graphic
+    // cannot be edited once it is out.
+    needsHumanApproval: t.tier === 'statutory',
+    headline: q,
+    slides: [
+      { type: 'hero', kicker: 'Know the word', title: q, sub: t.expand ?? '' },
+      { type: 'qa', question: name, answer: t.short },
+      t.tier === 'statutory'
+        ? { type: 'cta', title: 'Check the current rule',
+            body: `Defined under the ${t.act}. Rates and limits change, so confirm the current position before you rely on it.`,
+            link: t.source }
+        : { type: 'cta', title: 'Why it matters', body: t.why,
+            link: `${SITE}${t.path ?? '/insights'}` },
+    ],
+    caption: [
+      q,
+      '',
+      t.short,
+      '',
+      t.why,
+      ...(t.tier === 'statutory'
+        ? ['', `Defined under the ${t.act}. Rates and limits change by notification, so check ${t.source} for the current position rather than relying on this card.`]
+        : []),
+      '',
+      `${SITE}${t.path ?? '/insights'}`,
+    ].join('\n'),
+    hashtags: ['jobterms', ...TAGS.education, ...BASE_TAGS],
+  };
+}
+
+/** One question and answer, lifted from an article we published. */
+function faqPost(pick) {
+  if (!pick?.q || !pick?.a) return null;
+  return {
+    kind: 'education',
+    format: 'faq',
     headline: pick.q,
     slides: [
       { type: 'hero', kicker: 'Worth knowing', title: pick.q, sub: '' },
