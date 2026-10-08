@@ -406,7 +406,7 @@ async function pillarSarkari() {
     headline: `${top.body}: ${count}`,
     slides: [
       { type: 'hero', kicker: 'Government recruitment', title: top.body, sub: count },
-      { type: 'news', title: top.title, source: top.source, date: top.date.slice(0, 10) },
+      { type: 'news', title: top.title, source: top.source, date: istShort(top.date) },
       { type: 'cta', title: 'Apply on the official site only',
         body: `Everything about this notification is on ${top.site}. Never pay anyone to apply for a government job.`,
         link: top.site },

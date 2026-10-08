@@ -14,7 +14,7 @@
 // without waiting a week for it to come round.
 
 import { planRotation, PILLAR_BY_WEEKDAY, istWeekday } from '../../lib/rotation.js';
-import { KINDS } from '../../lib/insights.js';
+import { faqPool } from '../../lib/faqs.js';
 
 export const prerender = false;
 
@@ -30,34 +30,6 @@ function tokenMatches(given, expected) {
   let diff = 0;
   for (let i = 0; i < given.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
   return diff === 0;
-}
-
-/**
- * Every FAQ across every published article, flattened.
- *
- * The articles are the only content pillar that is written by a person, and
- * each question in them has already been checked once. That is exactly what
- * makes them safe to post unattended: nothing new is being asserted.
- */
-async function faqPool() {
-  try {
-    const { getCollection } = await import('astro:content');
-    const entries = await getCollection('insights');
-    return entries
-      .filter((e) => !e.data.draft && Array.isArray(e.data.faq))
-      .flatMap((e) =>
-        e.data.faq.map((f) => ({
-          q: f.q,
-          a: f.a,
-          title: e.data.title,
-          path: `/insights/${KINDS[e.data.kind]?.slug ?? 'blogs'}/${e.id}`,
-        })),
-      )
-      // Stable order, so "which question today" is reproducible after the fact.
-      .sort((a, b) => (a.path + a.q).localeCompare(b.path + b.q));
-  } catch {
-    return [];
-  }
 }
 
 export async function GET({ request }) {

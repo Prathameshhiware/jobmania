@@ -11,3 +11,9 @@ dist/
 
 .DS_Store
 *.log
+
+# Rendered card previews, written by `npm run cards` for eyeballing locally.
+.preview-cards/
+
+# Generated from the .ttf files by scripts/inline-fonts.mjs on every build.
+src/fonts/fonts.generated.js

@@ -17,18 +17,23 @@
     "stats": "node src/stats.js",
     "backfill:desc": "node src/backfill-descriptions.js",
     "roundup": "node src/weekly-roundup.js",
-    "boards:backfill": "node src/backfill-boards.js"
+    "boards:backfill": "node src/backfill-boards.js",
+    "cards": "node scripts/inline-fonts.mjs && node src/render-cards.js",
+    "prebuild": "node scripts/inline-fonts.mjs"
   },
   "overrides": {
     "htmlparser2": "^9.1.0",
     "path-to-regexp": "^6.3.0",
     "http-cache-semantics": "^4.3.0",
-    "source-map-js": "^1.2.2"
+    "source-map-js": "^1.2.2",
+    "fflate": "^0.8.2"
   },
   "dependencies": {
     "@astrojs/vercel": "^11.0.11",
+    "@resvg/resvg-js": "^2.6.2",
     "@supabase/supabase-js": "^2.45.0",
     "astro": "^7.3.5",
-    "sanitize-html": "^2.17.7"
+    "sanitize-html": "^2.17.7",
+    "satori": "^0.44.0"
   }
 }
