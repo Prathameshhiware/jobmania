@@ -1,0 +1,207 @@
+---
+// Today's post, ready to put on Instagram.
+//
+// Open this on a phone, save the cards, copy the caption, post. That is the
+// whole workflow, and it exists because the two things blocking full
+// automation are both things a person has to do anyway:
+//
+//   Trending audio can only be added inside the Instagram app. Meta's
+//   publishing API accepts original audio only, so the sound that actually
+//   drives reach on a reel is out of reach of any API, ours or anyone's.
+//
+//   A reel wants a video, and this runs on Vercel Hobby, which has a 60
+//   second function ceiling and no ffmpeg. Instagram's own reel editor will
+//   take these cards as frames, set the timing and add the audio, which is how
+//   most of these are actually made.
+//
+// So rather than automate badly, this makes the manual version take about
+// thirty seconds. It is noindex: it is a tool for whoever runs the account,
+// not a page for readers.
+
+import Base from '../../layouts/Base.astro';
+import { planRotation } from '../../lib/rotation.js';
+import { faqPool } from '../../lib/faqs.js';
+import { fullCaption, cardUrls } from '../../lib/social-feed.js';
+import { istLong, istDate } from '../../lib/ist.js';
+
+const origin = (Astro.site?.origin ?? Astro.url.origin).replace(/\/$/, '');
+
+// ?date=... previews another day, so a festival card can be checked before it
+// comes round. The image route bounds how far either way.
+const asked = Astro.url.searchParams.get('date');
+const forced = Astro.url.searchParams.get('force');
+const now = asked ? new Date(`${asked}T09:00:00+05:30`) : new Date();
+
+let plan = null;
+let failed = null;
+try {
+  plan = await planRotation({ now, faqs: await faqPool(), force: forced });
+} catch (err) {
+  failed = String(err?.message ?? err);
+}
+
+const caption = plan ? fullCaption(plan) : '';
+const images = plan ? cardUrls(plan, origin) : [];
+const stories = plan ? cardUrls(plan, origin, { story: true }) : [];
+const day = plan?.today ?? istDate(now);
+
+const PILLARS = ['openings', 'sarkari', 'education', 'closing', 'industry', 'walkins', 'roundup'];
+---
+
+<Base
+  title={`Today's post — ${plan?.headline ?? 'JoBmania'}`}
+  description="The daily Instagram post, ready to save and publish."
+  noindex={true}
+  maxAge={0}
+>
+  <main class="wrap">
+    <header class="head">
+      <p class="eyebrow">Instagram · {istLong(day)}</p>
+      <h1>{plan?.headline ?? 'Nothing to post'}</h1>
+      {plan && (
+        <p class="meta">
+          <span class="pill">{plan.kind}</span>
+          {plan.scheduled && plan.scheduled !== plan.kind && (
+            <span class="warn">fell back from {plan.scheduled}</span>
+          )}
+          {plan.needsHumanApproval && (
+            <span class="warn">check this one before posting</span>
+          )}
+        </p>
+      )}
+    </header>
+
+    {failed && <p class="err">Could not build today's post: {failed}</p>}
+    {!plan && !failed && <p class="err">No pillar had material today. Nothing should be posted.</p>}
+
+    {plan && (
+      <>
+        <section class="cards">
+          {images.map((src, i) => (
+            <figure class="card">
+              <img src={src} alt={`Card ${i + 1} of ${images.length}`} loading={i === 0 ? 'eager' : 'lazy'} width="1080" height="1080" />
+              <figcaption>
+                <span>{i + 1} / {images.length} · {plan.slides[i].type}</span>
+                <a href={src} download={`jobmania-${day}-${i + 1}.png`}>Save</a>
+              </figcaption>
+            </figure>
+          ))}
+        </section>
+
+        <section class="block">
+          <div class="blockhead">
+            <h2>Caption</h2>
+            <button type="button" class="copy" data-copy="caption">Copy</button>
+          </div>
+          <pre id="caption">{caption}</pre>
+        </section>
+
+        <section class="block">
+          <h2>For a reel</h2>
+          <p class="note">
+            Save the tall versions, then build the reel in the Instagram app so you can add a
+            trending sound. Music can only be attached in the app — no API can do it, including
+            Meta's own.
+          </p>
+          <ul class="tall">
+            {stories.map((src, i) => (
+              <li><a href={src} download={`jobmania-${day}-${i + 1}-story.png`}>Save tall card {i + 1} · 1080×1920</a></li>
+            ))}
+          </ul>
+        </section>
+
+        <section class="block">
+          <h2>Other days</h2>
+          <p class="note">Preview any pillar, or a festival before it arrives.</p>
+          <ul class="days">
+            {PILLARS.map((p) => (
+              <li><a href={`/social/today?force=${p}`} class={p === plan.kind ? 'on' : ''}>{p}</a></li>
+            ))}
+          </ul>
+          <p class="note">
+            Feeds for an automation tool:
+            <a href="/social/feed.json">feed.json</a> · <a href="/social/feed.xml">feed.xml</a>
+          </p>
+        </section>
+      </>
+    )}
+  </main>
+</Base>
+
+<style>
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px 80px; }
+  .head { margin-bottom: 28px; }
+  .eyebrow {
+    font-size: .8rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 8px;
+  }
+  h1 { font-family: var(--display); font-size: clamp(1.6rem, 5vw, 2.4rem); line-height: 1.15; margin: 0; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+  .pill, .warn {
+    font-size: .8rem; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  }
+  .pill { background: var(--glass-chip); border: 1px solid var(--hairline); color: var(--ink-2); }
+  .warn { background: var(--warn-soft); border: 1px solid var(--warn-line); color: var(--warn-ink); }
+  .err {
+    padding: 16px; border-radius: 12px; background: var(--warn-soft);
+    border: 1px solid var(--warn-line); color: var(--warn-ink);
+  }
+
+  .cards { display: grid; gap: 18px; margin: 0 0 32px; }
+  @media (min-width: 620px) { .cards { grid-template-columns: 1fr 1fr; } }
+  .card { margin: 0; }
+  .card img {
+    width: 100%; height: auto; display: block; border-radius: 14px;
+    border: 1px solid var(--hairline);
+  }
+  .card figcaption {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: .82rem; color: var(--ink-3); margin-top: 8px;
+  }
+  .card figcaption a {
+    font-weight: 700; color: var(--on-anchor); background: var(--anchor);
+    padding: 7px 16px; border-radius: 999px; text-decoration: none;
+  }
+
+  .block { margin: 0 0 30px; }
+  .blockhead { display: flex; align-items: center; justify-content: space-between; }
+  h2 { font-family: var(--display); font-size: 1.1rem; margin: 0 0 10px; }
+  .copy {
+    font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer;
+    background: var(--anchor); color: var(--on-anchor); border: 0;
+    padding: 8px 18px; border-radius: 999px;
+  }
+  pre {
+    white-space: pre-wrap; overflow-wrap: anywhere; margin: 0;
+    padding: 16px; border-radius: 12px; background: var(--glass);
+    border: 1px solid var(--hairline); font: inherit; font-size: .92rem;
+    line-height: 1.5; color: var(--ink-2);
+  }
+  .note { font-size: .9rem; color: var(--ink-3); line-height: 1.5; }
+  .tall, .days { list-style: none; padding: 0; margin: 12px 0 0; }
+  .tall li { margin-bottom: 8px; }
+  .tall a { color: var(--accent); font-weight: 600; }
+  .days { display: flex; flex-wrap: wrap; gap: 8px; }
+  .days a {
+    display: block; padding: 7px 14px; border-radius: 999px;
+    border: 1px solid var(--hairline); background: var(--glass-chip);
+    color: var(--ink-2); text-decoration: none; font-size: .85rem; font-weight: 600;
+  }
+  .days a.on { background: var(--anchor); color: var(--on-anchor); border-color: var(--anchor); }
+</style>
+
+<script>
+  // Copy the caption. navigator.clipboard needs a secure context and is absent
+  // in a few mobile in-app browsers, so a failure says so rather than pretending.
+  document.querySelector('.copy')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const text = document.getElementById('caption')?.textContent ?? '';
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Copied';
+    } catch {
+      btn.textContent = 'Select it by hand';
+    }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2200);
+  });
+</script>
