@@ -28,7 +28,7 @@ import HME from 'h264-mp4-encoder';
 import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
 import { slideSvg, STORY } from './lib/render.js';
-import { reelFrames, REEL_SECONDS } from './lib/reel.js';
+import { reelFrames, REEL_SECONDS, subjectCount } from './lib/reel.js';
 import { OVERSCAN, pan, ease, blend, progress } from './lib/reel-motion.js';
 import { istDate, istDatePlus } from './lib/ist.js';
 
@@ -66,7 +66,7 @@ function loadFaqs() {
  * real outcome on a quiet day and not an error. Nothing is invented to fill
  * the slot.
  */
-async function buildReel({ now, faqs, force = null, quiet = false, avoid = [] }) {
+async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], pick = 0 }) {
   let plan = await planRotation({ now, faqs, force });
   if (!plan) return null;
 
@@ -90,7 +90,7 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [] })
     }
   }
 
-  const cards = reelFrames(plan);
+  const cards = reelFrames(plan, { pick });
   const say = (s) => { if (!quiet) process.stdout.write(s); };
 
   const t0 = Date.now();
@@ -178,12 +178,14 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [] })
   enc.delete();
 
   mkdirSync(OUT_DIR, { recursive: true });
-  const file = `${OUT_DIR}reel-${plan.today}-${plan.kind}.mp4`;
+  const suffix = subjectCount(plan) > 1 ? `-${String(pick + 1).padStart(2, '0')}` : '';
+  const file = `${OUT_DIR}reel-${plan.today}-${plan.kind}${suffix}.mp4`;
   writeFileSync(file, mp4);
   say(`\r${' '.repeat(40)}\r`);
 
   return {
     file, plan, cards,
+    pick,
     bytes: mp4.length,
     seconds: written / FPS,
     ms: Date.now() - t0,
@@ -215,7 +217,8 @@ if (arg1 === 'week') {
     // Only the day before counts as a repeat. Over seven days every pillar
     // comes round once anyway, and avoiding all of them would force the last
     // days onto whatever is left rather than onto what is best.
-    const r = await buildReel({ now, faqs, quiet: false, avoid: made.slice(-1).map((x) => x.plan.kind) });
+    const r = await buildReel({ now, faqs, quiet: false, pick: d,
+      avoid: made.slice(-1).map((x) => x.plan.kind) });
     if (!r) { console.log(`  ${wd} ${date}  no material, skipped`); continue; }
 
     const fell = r.plan.kind !== scheduled ? `  (fell back from ${scheduled})` : '';
@@ -242,8 +245,10 @@ if (arg1 === 'week') {
   if (flagged.length) console.log(`\n${flagged.length} need checking before posting: ${flagged.map((r) => r.plan.kind).join(', ')}`);
   console.log('\nAdd a trending sound in the Instagram app. No API can attach licensed audio.');
 } else {
-  const now = arg2 ? new Date(`${arg2}T09:00:00+05:30`) : new Date();
-  const r = await buildReel({ now, faqs, force: arg1 });
+  // Third argument is a date, or a number picking which subject to cover.
+  const asNum = /^[0-9]+$/.test(String(arg2 ?? ""));
+  const now = (arg2 && !asNum) ? new Date(`${arg2}T09:00:00+05:30`) : new Date();
+  const r = await buildReel({ now, faqs, force: arg1, pick: asNum ? Number(arg2) : 0 });
   if (!r) { console.error('No pillar had material. Nothing to build.'); process.exit(1); }
 
   console.log(`${r.file}`);

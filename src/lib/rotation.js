@@ -116,7 +116,8 @@ async function liveJobs() {
   const { data, error } = await db
     .from('jobs')
     .select('status, hiring_type, experience_level, city_primary, company_name, slug, title, ' +
-            'walkin_start, walkin_time, walkin_venue, first_seen_at, posted_at, valid_through')
+            'walkin_start, walkin_time, walkin_venue, first_seen_at, posted_at, valid_through, ' +
+            'qualification, work_mode, exp_min, exp_max')
     .eq('status', 'live')
     .limit(5000);
   if (error) throw new Error(`jobs: ${error.message}`);
@@ -153,6 +154,7 @@ function pillarOpenings({ live, now }) {
 
   return {
     kind: 'openings',
+    subjects: arrived.slice(0, 12),
     headline: `${n(arrived.length)} new today`,
     slides: [
       { type: 'hero', kicker: istLong(now), title: `${n(arrived.length)} new openings today`,
@@ -198,6 +200,7 @@ function pillarClosing({ live, now }) {
 
   return {
     kind: 'closing',
+    subjects: closing.slice(0, 12),
     headline: `${n(closing.length)} closing this week`,
     slides: [
       { type: 'hero', kicker: 'Closing soon',
@@ -260,6 +263,7 @@ function pillarWalkins({ live, now }) {
   return {
     kind: 'walkins',
     city: topCity,
+    subjects: drives.slice(0, 12),
     headline: `${n(all.length)} walk-ins this week`,
     slides: [
       { type: 'hero', kicker: 'Next seven days',
@@ -422,6 +426,7 @@ async function pillarSarkari() {
   return {
     kind: 'sarkari',
     external: true,
+    subject: top,
     headline: `${top.body}: ${count}`,
     slides: [
       { type: 'hero', kicker: 'Government recruitment', title: top.body, sub: count },
@@ -491,6 +496,7 @@ async function pillarIndustry({ live }) {
   return {
     kind: 'industry',
     external: true,
+    subject: lead,
     headline: lead.title.slice(0, 60),
     slides: [
       { type: 'hero', kicker: 'This week in hiring', title: lead.title, sub: lead.source },
