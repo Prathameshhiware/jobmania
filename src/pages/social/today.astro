@@ -23,6 +23,7 @@ import { planRotation } from '../../lib/rotation.js';
 import { faqPool } from '../../lib/faqs.js';
 import { fullCaption, cardUrls } from '../../lib/social-feed.js';
 import { istLong, istDate } from '../../lib/ist.js';
+import { db } from '../../lib/supabase.js';
 
 const origin = (Astro.site?.origin ?? Astro.url.origin).replace(/\/$/, '');
 
@@ -46,6 +47,29 @@ const stories = plan ? cardUrls(plan, origin, { story: true }) : [];
 const day = plan?.today ?? istDate(now);
 
 const PILLARS = ['openings', 'sarkari', 'education', 'closing', 'industry', 'walkins', 'roundup'];
+
+/*
+ * Today's reel, if one has been built and uploaded.
+ *
+ * The video is made on a real machine — Vercel cannot encode one — so the
+ * page does not build it, it only looks for it. Absent is the normal state
+ * on a day the script has not run, and the page says so rather than showing
+ * a broken player.
+ */
+let reel = null;
+if (plan) {
+  try {
+    const { data } = await db.storage.from('reels').list('', { limit: 200 });
+    const match = (data ?? []).find((f) => f.name === `${day}-${plan.kind}.mp4`);
+    if (match) {
+      reel = {
+        url: db.storage.from('reels').getPublicUrl(match.name).data.publicUrl,
+        mb: match.metadata?.size ? (match.metadata.size / 1048576).toFixed(1) : null,
+        name: match.name,
+      };
+    }
+  } catch { /* storage unreachable: the page still works without it */ }
+}
 ---
 
 <Base
@@ -96,8 +120,32 @@ const PILLARS = ['openings', 'sarkari', 'education', 'closing', 'industry', 'wal
           <pre id="caption">{caption}</pre>
         </section>
 
+        {reel && (
+          <section class="block">
+            <div class="blockhead">
+              <h2>Today's reel</h2>
+              <a class="copy" href={reel.url} download={reel.name}>Save video</a>
+            </div>
+            <video src={reel.url} controls playsinline preload="metadata" class="reel"></video>
+            <p class="note">
+              {reel.mb && <>{reel.mb} MB · </>}Silent on purpose. Add a trending sound in the
+              Instagram app — music cannot be attached by any API, Meta's own included.
+            </p>
+          </section>
+        )}
+
+        {!reel && (
+          <section class="block">
+            <h2>Today's reel</h2>
+            <p class="note">
+              Not built yet. Run <code>npm run reel:deliver</code> and reload — the video is
+              encoded on a real machine, because Vercel cannot do it.
+            </p>
+          </section>
+        )}
+
         <section class="block">
-          <h2>For a reel</h2>
+          <h2>Reel frames</h2>
           <p class="note">
             Save the tall versions, then build the reel in the Instagram app so you can add a
             trending sound. Music can only be attached in the app — no API can do it, including
@@ -170,6 +218,14 @@ const PILLARS = ['openings', 'sarkari', 'education', 'closing', 'industry', 'wal
     font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer;
     background: var(--anchor); color: var(--on-anchor); border: 0;
     padding: 8px 18px; border-radius: 999px;
+  }
+  .reel {
+    width: 100%; max-width: 320px; display: block; border-radius: 14px;
+    border: 1px solid var(--hairline); background: #000; margin: 4px 0 10px;
+  }
+  code {
+    font-size: .88em; padding: 2px 6px; border-radius: 5px;
+    background: var(--glass-chip); border: 1px solid var(--hairline);
   }
   pre {
     white-space: pre-wrap; overflow-wrap: anywhere; margin: 0;

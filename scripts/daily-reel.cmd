@@ -1,5 +1,5 @@
 @echo off
-REM Builds today's reel and drops it in OneDrive, where the phone picks it up.
+REM Builds today's reel and uploads it, so the phone can fetch it from the site.
 REM
 REM This is what Windows Task Scheduler runs. It exists because the scheduler
 REM cannot call npm directly: npm is a shell script, so it needs cmd around
@@ -18,6 +18,8 @@ REM
 REM The machine has to be awake at that time. Nothing is lost if it is not —
 REM the next run picks up from the same history and simply covers whatever
 REM has gone longest without a turn.
+REM
+REM The reel lands at jobmania.dpdns.org/social/today.
 
 setlocal
 cd /d "%~dp0.."
