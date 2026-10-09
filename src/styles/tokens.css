@@ -2,6 +2,73 @@
    Change a value here and the whole site follows. Nothing below this file
    should hard-code a colour. */
 
+/* Self-hosted, from this origin. Google Fonts cost a render-blocking
+   stylesheet plus a second DNS lookup, TLS handshake and fetch to
+   fonts.gstatic.com before any glyph could be drawn, and bought nothing:
+   the files never change and the reel renderer already embeds them.
+
+   Only the weights the CSS actually uses, subset to Latin. font-display:
+   swap so text is readable immediately in the fallback and reflows once,
+   rather than being invisible while a font loads.
+
+   Built by scripts/build-webfonts.py — rerun it if the weights change. */
+@font-face {
+  font-family: 'Sora';
+  src: url('/fonts/Sora-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sora';
+  src: url('/fonts/Sora-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sora';
+  src: url('/fonts/Sora-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sora';
+  src: url('/fonts/Sora-800.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  src: url('/fonts/SchibstedGrotesk-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  src: url('/fonts/SchibstedGrotesk-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  src: url('/fonts/SchibstedGrotesk-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Schibsted Grotesk';
+  src: url('/fonts/SchibstedGrotesk-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* pastel field */
   --field-1: #CFC9EC; --field-2: #BFC7EC; --field-3: #EAD2DA;

@@ -23,7 +23,8 @@
     "reel": "node scripts/inline-fonts.mjs && node src/make-reel.js",
     "reel:deliver": "node scripts/inline-fonts.mjs && node src/make-reel.js deliver",
     "doctor": "node src/doctor.js",
-    "reel:batch": "node scripts/inline-fonts.mjs && node src/make-reel.js batch"
+    "reel:batch": "node scripts/inline-fonts.mjs && node src/make-reel.js batch",
+    "speed": "node src/speed.js"
   },
   "overrides": {
     "htmlparser2": "^9.1.0",

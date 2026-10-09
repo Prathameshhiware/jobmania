@@ -20,8 +20,11 @@ const CSP = [
 
   // Astro emits scoped <style> blocks and the design uses inline style
   // attributes, so inline styles cannot be blocked without rewriting both.
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com",
+  // No Google Fonts any more: the faces are served from this origin, so
+  // neither host needs to be allowed. A narrower policy is the quiet
+  // benefit of self-hosting.
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
 
   // Analytics still falls back to a tracking pixel in some browsers, so the
   // image hosts have to be allowed alongside the script.
