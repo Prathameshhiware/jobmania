@@ -60,6 +60,16 @@ const CITY_TAGS = {
   Pune: ['punejobs'],
 };
 
+/**
+ * A glossary anchor, matching the id the glossary page renders.
+ *
+ * Must stay in step with the slug in glossary.astro. If they drift, the link
+ * still resolves to the page and simply fails to jump, which is a small
+ * enough failure that nothing would report it.
+ */
+const termSlug = (t) =>
+  String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
 const citySlug = (c) =>
   String(c).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 

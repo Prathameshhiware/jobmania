@@ -145,7 +145,7 @@ function revealStates(slide) {
   return head.length ? head : [slide];
 }
 
-async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], pick = 0 }) {
+async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], pick = null, history = [] }) {
   let plan = await planRotation({ now, faqs, force });
   if (!plan) return null;
 
@@ -176,7 +176,15 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
     }
   }
 
-  const cards = reelFrames(plan, { pick });
+  /*
+   * The subject is chosen after the pillar is settled, not before.
+   *
+   * Choosing it against the first plan and then re-planning around `avoid`
+   * would index the new pillar's list with the old pillar's position — a
+   * silent off-by-whatever that picks an unrelated job.
+   */
+  const chosen = pick ?? pickSubject(plan, history);
+  const cards = reelFrames(plan, { pick: chosen });
   const say = (s) => { if (!quiet) process.stdout.write(s); };
 
   const t0 = Date.now();
@@ -318,14 +326,14 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
   const mp4 = faststart(raw);
 
   mkdirSync(OUT_DIR, { recursive: true });
-  const suffix = subjectCount(plan) > 1 ? `-${String(pick + 1).padStart(2, '0')}` : '';
+  const suffix = subjectCount(plan) > 1 ? `-${String(chosen + 1).padStart(2, '0')}` : '';
   const file = `${OUT_DIR}reel-${plan.today}-${plan.kind}${suffix}.mp4`;
   writeFileSync(file, mp4);
   say(`\r${' '.repeat(40)}\r`);
 
   return {
     file, plan, cards,
-    pick,
+    pick: chosen,
     spans: shots.map((sh) => sh.span / FPS),
     bytes: mp4.length,
     seconds: written / FPS,
@@ -357,15 +365,30 @@ if (arg1 === 'deliver') {
 
   // Plan first, so the subject is chosen against what has already gone out
   // rather than by date arithmetic that cannot see the history.
+  /*
+   * Yesterday's pillar is avoided.
+   *
+   * The weekday rotation varies on its own, but a pillar with nothing to say
+   * falls back, and the fallback order is fixed — so a run of quiet days all
+   * land on the same place. A simulated week came out with three "closing"
+   * reels inside five days, because the two days before it had both fallen
+   * through to it.
+   *
+   * buildReel re-plans around anything named here, and walk-ins are barred
+   * from reels regardless.
+   */
+  const yesterday = [...history].reverse().find((e) => e.pillar)?.pillar;
+  const avoid = yesterday ? [yesterday] : [];
+
   const probe = await planRotation({ now, faqs });
   if (!probe) { console.error('No pillar had material today. Nothing delivered.'); process.exit(1); }
 
-  const pick = pickSubject(probe, history);
-  const recycled = allUsed(probe, history);
-  const since = daysSince(probe, pick, history);
-
-  const r = await buildReel({ now, faqs, pick, quiet: false });
+  const r = await buildReel({ now, faqs, avoid, history, quiet: false });
   if (!r) { console.error('Build failed. Nothing delivered.'); process.exit(1); }
+
+  const pick = r.pick;
+  const recycled = allUsed(r.plan, history);
+  const since = daysSince(r.plan, pick, history);
 
   const stamp = `${r.plan.today}-${r.plan.kind}`;
   const put = async (path, body, contentType) => {
@@ -448,7 +471,7 @@ if (arg1 === 'deliver') {
     // Only the day before counts as a repeat. Over seven days every pillar
     // comes round once anyway, and avoiding all of them would force the last
     // days onto whatever is left rather than onto what is best.
-    const r = await buildReel({ now, faqs, quiet: false, pick: d,
+    const r = await buildReel({ now, faqs, quiet: false, pick: d, history: [],
       avoid: made.slice(-1).map((x) => x.plan.kind) });
     if (!r) { console.log(`  ${wd} ${date}  no material, skipped`); continue; }
 
