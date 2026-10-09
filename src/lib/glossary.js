@@ -28,6 +28,12 @@
 //               posted graphic cannot be corrected. Anyone who needs the
 //               current figure is sent to the source instead.
 //
+//               All six were reviewed and approved by the site owner on
+//               9 October 2026, so they publish unattended like the rest.
+//               What keeps them safe is not the review but the rule above:
+//               they carry no figure that can go out of date. A statutory
+//               term added later must follow it, and must be reviewed.
+//
 // Every statutory entry carries `source`. Nothing here states a statistic
 // about the Indian job market, because this file is for defining words, not
 // for making claims.

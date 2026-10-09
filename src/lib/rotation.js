@@ -350,10 +350,12 @@ function glossaryPost(t) {
   return {
     kind: 'education',
     format: 'glossary',
-    // Statutory terms are prepared but never posted unattended. The definition
-    // is stable; the rates and thresholds behind it are not, and a graphic
-    // cannot be edited once it is out.
-    needsHumanApproval: t.tier === 'statutory',
+    // Statutory terms were reviewed and approved on 9 October 2026 and now
+    // publish unattended. What makes that safe is that they state no rate or
+    // threshold at all — only what the thing is, the Act it comes from, and
+    // where to check the current position. A statutory term that ever quotes
+    // a figure has to go back behind a hold.
+    needsHumanApproval: false,
     headline: q,
     slides: [
       { type: 'hero', kicker: 'Know the word', title: q, sub: t.expand ?? '' },

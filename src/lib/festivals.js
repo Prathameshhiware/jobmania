@@ -2,6 +2,11 @@
 //
 // READ THIS BEFORE TRUSTING ANY DATE HERE.
 //
+// All 16 dates below were reviewed and approved by the site owner on
+// 9 October 2026. That approval covers the list as it stands; a date added
+// later has not been reviewed and should be treated as provisional until it
+// is.
+//
 // Nothing in this file is calculated. Every date was looked up and is recorded
 // with the source it came from, because most Indian festivals follow a lunar
 // calendar and move by a week or more each year. A greeting posted on the wrong

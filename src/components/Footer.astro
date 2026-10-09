@@ -30,6 +30,19 @@ const year = new Date().getFullYear();
     <div class="foot-id">
       <a class="brand" href="/">Jo<b>B</b>mania</a>
       <p>Openings that are still actually open. Sourced from employers’ own careers pages and re-checked daily.</p>
+      <a
+        class="social"
+        href="https://www.instagram.com/jobmania.in/"
+        rel="me noopener"
+        target="_blank"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect x="2.5" y="2.5" width="19" height="19" rx="5.4" />
+          <circle cx="12" cy="12" r="4.6" />
+          <circle cx="17.6" cy="6.4" r="1.25" class="dot-fill" />
+        </svg>
+        <span>@jobmania.in</span>
+      </a>
     </div>
     <nav class="foot-links" aria-label="Footer">
       <div class="link-row">
@@ -98,6 +111,21 @@ const year = new Date().getFullYear();
   .foot-end { margin-top: 18px; display: flex; gap: 32px 48px; flex-wrap: wrap; align-items: flex-start; }
   .foot-id { flex: 1 1 250px; max-width: 320px; }
   .foot-id p { margin: 12px 0 0; font-size: 14px; font-weight: 500; color: var(--ink-2); }
+
+  /* rel="me" so the profile and the site can vouch for each other. The glyph
+     is drawn here rather than loaded: one more network request for a 24px
+     icon is not worth it, and it inherits the ink colour in both themes. */
+  .social {
+    display: inline-flex; align-items: center; gap: 9px; margin-top: 14px;
+    min-height: 44px; font-size: 14px; font-weight: 700;
+    color: var(--ink-2); text-decoration: none;
+  }
+  .social svg {
+    width: 20px; height: 20px; flex: none;
+    fill: none; stroke: currentColor; stroke-width: 1.9;
+  }
+  .social .dot-fill { fill: currentColor; stroke: none; }
+  .social:hover, .social:focus-visible { color: var(--accent); }
   .brand { font-family: var(--display); font-size: 23px; font-weight: 800; letter-spacing: -0.05em; color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
   .brand b { color: var(--accent); }
   .foot-links { flex: 2 1 420px; display: flex; flex-direction: column; gap: 16px; }
