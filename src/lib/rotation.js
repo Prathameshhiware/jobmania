@@ -260,7 +260,8 @@ function pillarWalkins({ live, now }) {
       `${n(drives.length)} walk-in drive${drives.length === 1 ? '' : 's'} in the next seven days.`,
       '',
       ...drives.slice(0, 6).map((j) =>
-        `${istShort(j.walkin_start)} — ${cleanCompany(j.company_name)}, ${[j.city_primary, j.walkin_time].filter(Boolean).join(', ')}`),
+        [`${istShort(j.walkin_start)} — ${cleanCompany(j.company_name)}`,
+         [j.city_primary, j.walkin_time].filter(Boolean).join(', ')].filter(Boolean).join(', ')),
       '',
       'Venue and timing for each one is on the site, exactly as the employer published it. Confirm on their own page before you travel, because drives do get moved.',
       '',

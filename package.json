@@ -19,7 +19,8 @@
     "roundup": "node src/weekly-roundup.js",
     "boards:backfill": "node src/backfill-boards.js",
     "cards": "node scripts/inline-fonts.mjs && node src/render-cards.js",
-    "prebuild": "node scripts/inline-fonts.mjs"
+    "prebuild": "node scripts/inline-fonts.mjs",
+    "reel": "node scripts/inline-fonts.mjs && node src/make-reel.js"
   },
   "overrides": {
     "htmlparser2": "^9.1.0",
@@ -35,5 +36,8 @@
     "astro": "^7.3.5",
     "sanitize-html": "^2.17.7",
     "satori": "^0.44.0"
+  },
+  "devDependencies": {
+    "h264-mp4-encoder": "^1.0.12"
   }
 }
