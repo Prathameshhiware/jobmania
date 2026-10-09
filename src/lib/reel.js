@@ -112,7 +112,25 @@ function frames(plan) {
   } else if (news) {
     out.push({ weight: CONTEXT + 1.5, slide: news });
   } else if (stat) {
-    out.push({ weight: CONTEXT + 1, slide: stat });
+    /*
+     * A stat card holds four numbers because a reader can sit on it. In a reel
+     * nobody can, and four numbers in one frame held for ten seconds is both
+     * too much to take in and too long to wait through. Sunday's roundup came
+     * out as three cards at ten seconds each, which is a slideshow, not a reel.
+     *
+     * So the rows are dealt out one at a time, same as a list.
+     */
+    const rows = (stat.rows ?? []).slice(0, 4);
+    if (rows.length > 1) {
+      for (const [value, label] of rows) {
+        out.push({
+          weight: ITEM,
+          slide: { type: 'hero', kicker: '', title: String(value), sub: label },
+        });
+      }
+    } else {
+      out.push({ weight: CONTEXT + 1, slide: stat });
+    }
   }
 
   // ---- items, one card each
