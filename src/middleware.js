@@ -26,6 +26,13 @@ const CSP = [
   // Analytics still falls back to a tracking pixel in some browsers, so the
   // image hosts have to be allowed alongside the script.
   "img-src 'self' data: https://*.google-analytics.com https://*.googletagmanager.com",
+
+  // The daily reel is encoded on a real machine — Vercel cannot do video —
+  // and served from Supabase Storage, so it is genuinely cross-origin. With
+  // no media-src it fell through to default-src 'self' and was blocked
+  // outright: the player rendered and sat black with nothing in the network
+  // log. Storage only; the API host has no business being a media source.
+  "media-src 'self' https://*.supabase.co",
   // Same-origin XHR plus the analytics endpoints. Every Supabase call still
   // happens server-side, so the browser never reaches the database host; these
   // three are the only outbound destinations a visitor's browser is allowed.
