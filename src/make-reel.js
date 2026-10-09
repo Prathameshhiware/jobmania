@@ -380,7 +380,7 @@ if (arg1 === 'deliver') {
    * out and what is queued lives somewhere other than a terminal.
    */
   const now = new Date();
-  const history = loadHistory();
+  const history = await loadHistory();
 
   // Plan first, so the subject is chosen against what has already gone out
   // rather than by date arithmetic that cannot see the history.
@@ -430,11 +430,11 @@ if (arg1 === 'deliver') {
     '',
   ].join('\n'), 'text/plain; charset=utf-8');
 
-  record(r.plan, pick, { file: `${stamp}.mp4` });
+  const updated = await record(r.plan, pick, { file: `${stamp}.mp4`, entries: history });
 
   // The content table, rebuilt each run from the history itself so it cannot
   // drift from what actually happened.
-  const rows = loadHistory().slice(-30).reverse()
+  const rows = updated.slice(-30).reverse()
     .map((e) => `| ${e.date} | ${e.pillar} | ${String(e.headline).replace(/\|/g, '/').slice(0, 58)} | ${e.file ?? ''} |`);
   await put('CONTENT.md', [
     '# JoBmania reels',

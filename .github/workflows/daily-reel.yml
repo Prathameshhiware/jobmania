@@ -1,0 +1,71 @@
+# Builds the daily Instagram reel on GitHub's runners instead of a laptop.
+#
+# This project deliberately does not use Actions as a clock. Free runners
+# deprioritise cron so heavily that a job asking for every five minutes
+# actually fired every three to six hours, which is why the polling, the
+# link checks and the Sunday roundup all run from pg_cron inside Supabase.
+#
+# A once-a-day reel is the one case where that does not matter. If 08:30
+# drifts to 09:10 nothing is lost — there is no deadline, and the only
+# consumer is a person opening a page later that morning.
+#
+# What it needs, as repository secrets:
+#
+#   SUPABASE_URL                 same value Vercel already has
+#   SUPABASE_SERVICE_ROLE_KEY    same value Vercel already has
+#
+# Both are secrets, never printed, and unavailable to pull requests from
+# forks — which matters here because the repository is public.
+
+name: Daily reel
+
+on:
+  schedule:
+    # 03:00 UTC is 08:30 IST, because India is +5:30 and the half hour comes
+    # from the offset rather than from the minute field. Actions only accepts
+    # UTC, so this is the one place in the project where a time is not written
+    # in IST.
+    - cron: '0 3 * * *'
+  # So a reel can be built on demand without waiting for tomorrow.
+  workflow_dispatch:
+
+# One at a time. Two runs racing would both read the same history and could
+# pick the same subject, then overwrite each other's record of it.
+concurrency:
+  group: daily-reel
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # npm ci rather than install: the lockfile is what was tested, and a
+      # runner silently resolving a different version of a native module is
+      # exactly the kind of difference that only shows up in the output.
+      - run: npm ci
+
+      - name: Build and upload today's reel
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run reel:deliver
+
+      # Kept for a fortnight so a bad reel can be looked at rather than
+      # guessed about. The real copy lives in Supabase either way.
+      - name: Keep a copy of the output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-${{ github.run_number }}
+          path: .preview-cards/*.mp4
+          retention-days: 14
+          if-no-files-found: ignore

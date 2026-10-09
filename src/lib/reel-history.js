@@ -20,11 +20,37 @@
 // the script, and a migration for a list of strings would be ceremony.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { db } from './supabase.js';
 
 const FILE = './.reel-history.json';
+const BUCKET = 'reels';
+const REMOTE = 'history.json';
+
+/*
+ * The history lives next to the reels, not on the machine that made them.
+ *
+ * It started as a local file, which was fine while one laptop built
+ * everything. The moment this runs anywhere else — a CI runner, a server, a
+ * second machine — a local file means every run starts with no memory, so
+ * pickSubject returns 0 every time and the same subject goes out forever
+ * while the rotation looks like it is working.
+ *
+ * Storage is the single source of truth. The local file is kept as a mirror,
+ * used only when storage cannot be reached, so a build still runs offline
+ * rather than silently losing its place.
+ */
 
 /** Everything recorded so far, oldest first. Never throws. */
-export function load() {
+export async function load() {
+  try {
+    const url = db.storage.from(BUCKET).getPublicUrl(REMOTE).data.publicUrl;
+    const res = await fetch(`${url}?t=${Date.now()}`);   // defeat the CDN cache
+    if (res.ok) {
+      const raw = await res.json();
+      if (Array.isArray(raw?.entries)) return raw.entries;
+    }
+  } catch { /* fall through to the local mirror */ }
+
   try {
     const raw = JSON.parse(readFileSync(FILE, 'utf8'));
     return Array.isArray(raw?.entries) ? raw.entries : [];
@@ -33,11 +59,21 @@ export function load() {
   }
 }
 
-function save(entries) {
+async function save(entries) {
   // Trimmed, because the only question ever asked is "how long since this
   // one", and an answer older than a few hundred reels cannot change it.
-  const keep = entries.slice(-400);
-  writeFileSync(FILE, JSON.stringify({ entries: keep }, null, 2));
+  const body = JSON.stringify({ entries: entries.slice(-400) }, null, 2);
+
+  try {
+    const { error } = await db.storage.from(BUCKET).upload(REMOTE, body, {
+      contentType: 'application/json', upsert: true, cacheControl: '0',
+    });
+    if (error) throw new Error(error.message);
+  } catch (err) {
+    console.error('history: could not write to storage —', err?.message ?? err);
+  }
+
+  try { writeFileSync(FILE, body); } catch { /* mirror is best-effort */ }
 }
 
 /**
@@ -85,7 +121,7 @@ const companyAt = (plan, i) =>
  * Returns an index into plan.subjects, or 0 for a pillar that only ever has
  * one subject.
  */
-export function pickSubject(plan, entries = load()) {
+export function pickSubject(plan, entries = []) {
   const n = plan.subjects?.length ?? 0;
   if (n <= 1) return 0;
 
@@ -128,7 +164,7 @@ export function pickSubject(plan, entries = load()) {
  * went out last week is stale even though the recycler would happily serve
  * the oldest. This is the test for "reach for something fresher instead".
  */
-export function allRecent(plan, days = 14, entries = load()) {
+export function allRecent(plan, days = 14, entries = []) {
   const n = plan.subjects?.length ?? 0;
   if (!n) return false;
   const cutoff = Date.now() - days * 864e5;
@@ -140,7 +176,7 @@ export function allRecent(plan, days = 14, entries = load()) {
 }
 
 /** True when every subject in this plan has been covered before. */
-export function allUsed(plan, entries = load()) {
+export function allUsed(plan, entries = []) {
   const n = plan.subjects?.length ?? 0;
   if (!n) return false;
   const seen = new Set(entries.map((e) => e.key));
@@ -149,9 +185,9 @@ export function allUsed(plan, entries = load()) {
 }
 
 /** Note that a reel was made, so the next run avoids repeating it. */
-export function record(plan, pick, { file } = {}) {
-  const entries = load();
-  entries.push({
+export async function record(plan, pick, { file, entries = null } = {}) {
+  const current = entries ?? (await load());
+  current.push({
     key: subjectKey(plan, pick),
     company: companyAt(plan, pick) || null,
     pillar: plan.kind,
@@ -160,12 +196,12 @@ export function record(plan, pick, { file } = {}) {
     file: file ?? null,
     at: new Date().toISOString(),
   });
-  save(entries);
-  return entries;
+  await save(current);
+  return current;
 }
 
 /** How many days since this exact subject last went out, or null. */
-export function daysSince(plan, pick = 0, entries = load()) {
+export function daysSince(plan, pick = 0, entries = []) {
   const key = subjectKey(plan, pick);
   const hit = [...entries].reverse().find((e) => e.key === key);
   if (!hit) return null;
