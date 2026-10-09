@@ -36,6 +36,19 @@ import { cleanCompany } from './rotation.js';
  * of a few dense ones. A label and its value get their own frames, because
  * two short cards land harder than one card with two lines on it.
  */
+/** City tags, keyed by the names the database actually stores. */
+const CITY_HASHTAGS = {
+  Bengaluru: ['bangalorejobs', 'bengalurujobs'],
+  Hyderabad: ['hyderabadjobs'],
+  'Delhi NCR': ['delhijobs', 'ncrjobs'],
+  Mumbai: ['mumbaijobs'],
+  Chennai: ['chennaijobs'],
+  Pune: ['punejobs'],
+  Kolkata: ['kolkatajobs'],
+  Ahmedabad: ['ahmedabadjobs'],
+  Remote: ['workfromhome', 'remotejobsindia'],
+};
+
 const HOOK = 2.6;
 const BEAT = 1.5;
 const PUNCH = 1.2;      // a short one: a single word or number
@@ -247,5 +260,126 @@ export function reelFrames(plan, { pick = 0 } = {}) {
 }
 
 /** How many different reels this plan could make today. */
+/*
+ * The caption for a reel, which is not the caption for the carousel.
+ *
+ * The carousel lists five companies because it shows five. A reel is about
+ * one, so reusing that caption put four employers under a video that never
+ * mentions them — which is wrong on its face and reads as a bot.
+ *
+ * Shape, in the order that matters:
+ *
+ *   hook      one line, under about 125 characters, because Instagram cuts
+ *             the caption there and everything after it needs a tap
+ *   detail    what it actually is
+ *   prompt    a reason to save or send it, which is what moves a reel further
+ *             than a like does
+ *   promise   no fee, ever — the line this whole site exists to be able to say
+ *   link      where to go
+ *
+ * Every fact is from the row or from a named publisher. The hook is phrasing,
+ * not invention: it never adds a claim the carousel would not make.
+ */
+export function reelCaption(plan, pick = 0) {
+  const j = plan.subjects?.length ? plan.subjects[pick % plan.subjects.length] : null;
+  const x = plan.subject ?? null;
+  const url = plan.url;
+  const co = j ? cleanCompany(j.company_name) : null;
+  const where = j?.city_primary ? ` in ${j.city_primary}` : '';
+  const exp = j ? experience(j) : null;
+
+  const parts = (() => {
+    switch (plan.kind) {
+      case 'openings':
+        return [
+          `${co} is hiring${where}.`,
+          '',
+          `${j.title}${exp ? ` · ${exp}` : ''}`,
+          j.posted_at ? `Posted ${istShort(j.posted_at)}, still open today.` : 'Open today.',
+          '',
+          'Save this if you are applying this week. Apply in the first 48 hours — recruiters stop reading once they have a shortlist.',
+          '',
+          'The apply link goes to the employer, never through us.',
+          `${url}/c/just-posted`,
+        ];
+
+      case 'closing':
+        return [
+          `${co} closes applications ${j.valid_through ? istShort(j.valid_through) : 'this week'}.`,
+          '',
+          `${j.title}${where}${exp ? ` · ${exp}` : ''}`,
+          '',
+          'A deadline is the last possible day, not the best one — employers close early once they have enough. Do it tonight.',
+          '',
+          'Send this to someone who keeps leaving it late.',
+          `${url}/jobs`,
+        ];
+
+      case 'sarkari':
+        return [
+          `${x.body}${x.vacancies ? ` — ${Number(x.vacancies).toLocaleString('en-IN')} posts.` : ' — applications open.'}`,
+          '',
+          x.title,
+          `Reported by ${x.source}, ${istLong(x.date)}.`,
+          '',
+          `Apply only on the official site: ${x.site}`,
+          'Nobody can sell you a government job. Anyone who offers is running a scam.',
+          '',
+          'We do not list government vacancies and have not verified this one. Read the official notification before applying.',
+          '',
+          `For private-sector openings we do verify: ${url}`,
+        ];
+
+      case 'industry':
+        return [
+          x.title,
+          `${x.source}, ${istLong(x.date)}.`,
+          '',
+          'News tells you the direction. It does not tell you what you can apply to.',
+          plan.stats?.live
+            ? `${Number(plan.stats.live).toLocaleString('en-IN')} openings are live on JoBmania right now, every link re-tested through the day.`
+            : 'Verified openings on the site, every link re-tested through the day.',
+          '',
+          'Save this if you are job hunting right now.',
+          `${url}/jobs`,
+        ];
+
+      case 'education': {
+        const qa = plan.slides.find((v) => v.type === 'qa');
+        const cta = plan.slides.find((v) => v.type === 'cta');
+        return [
+          plan.headline,
+          '',
+          qa?.answer ?? '',
+          '',
+          cta?.body ? `${cta.body}` : '',
+          '',
+          'Save this — it comes up in every offer conversation.',
+          'Send it to a friend who is about to sign one.',
+          '',
+          cta?.link ?? url,
+        ];
+      }
+
+      default:
+        return [plan.caption];
+    }
+  })();
+
+  const body = parts.filter((line, i, a) => !(line === '' && a[i - 1] === '')).join('\n').trim();
+
+  /*
+   * The subject's own city joins the tags.
+   *
+   * The pillar tags are identical every time, which makes them close to
+   * useless for reach — a search for jobs in Hyderabad will not surface a
+   * post tagged only #jobsinindia. A city tag is the one piece of real
+   * targeting this content has, and it is true of the subject rather than
+   * guessed at.
+   */
+  const tags = [...new Set([...(CITY_HASHTAGS[j?.city_primary] ?? []), ...plan.hashtags])];
+  return `${body}\n\nNo registration fee, ever.\n\n${tags.map((h) => `#${h}`).join(' ')}`;
+}
+
 export const subjectCount = (plan) =>
   plan?.subjects?.length ? plan.subjects.length : 1;

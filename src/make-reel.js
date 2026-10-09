@@ -30,7 +30,7 @@ import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
 import { pickSubject, record, allUsed, daysSince, load as loadHistory } from './lib/reel-history.js';
 import { slideSvg, STORY } from './lib/render.js';
-import { reelFrames, subjectCount, NO_REEL } from './lib/reel.js';
+import { reelFrames, reelCaption, subjectCount, NO_REEL } from './lib/reel.js';
 import { zoomPan, outQuint, progress } from './lib/reel-motion.js';
 import { istDate, istDatePlus, istLong } from './lib/ist.js';
 import { db } from './lib/supabase.js';
@@ -367,10 +367,10 @@ if (arg1 === 'deliver') {
   };
 
   const videoUrl = await put(`${stamp}.mp4`, readFileSync(r.file), 'video/mp4');
+  // reelCaption already opens with the hook, so the headline is not
+  // prepended again — doing so printed it twice at the top of every caption.
   await put(`${stamp}.txt`, [
-    r.plan.headline,
-    '',
-    caption(r.plan),
+    reelCaption(r.plan, pick),
     '',
     '--',
     'Add a trending sound in the Instagram app before posting.',

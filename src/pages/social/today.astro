@@ -1,263 +1,193 @@
 ---
-// Today's post, ready to put on Instagram.
+// Today's reel, ready to post.
 //
-// Open this on a phone, save the cards, copy the caption, post. That is the
-// whole workflow, and it exists because the two things blocking full
-// automation are both things a person has to do anyway:
+// Deliberately only the video. There were carousel cards and still frames
+// here as well, and they turned the page into a menu when it needs to be one
+// action: watch it, save it, copy the caption, post it. The cards are still
+// built and still served from /social/<date>/<n>.png — they are just not what
+// this page is for.
 //
-//   Trending audio can only be added inside the Instagram app. Meta's
-//   publishing API accepts original audio only, so the sound that actually
-//   drives reach on a reel is out of reach of any API, ours or anyone's.
+// The caption shown is the one uploaded beside the video, not one re-derived
+// here. Re-deriving would drift silently: a reel covers one subject, chosen
+// against what has already gone out, and a caption built fresh on page load
+// could easily describe a different one.
 //
-//   A reel wants a video, and this runs on Vercel Hobby, which has a 60
-//   second function ceiling and no ffmpeg. Instagram's own reel editor will
-//   take these cards as frames, set the timing and add the audio, which is how
-//   most of these are actually made.
-//
-// So rather than automate badly, this makes the manual version take about
-// thirty seconds. It is noindex: it is a tool for whoever runs the account,
-// not a page for readers.
+// noindex. A tool for whoever runs the account, not a page for readers.
 
 import Base from '../../layouts/Base.astro';
-import { planRotation } from '../../lib/rotation.js';
-import { faqPool } from '../../lib/faqs.js';
-import { fullCaption, cardUrls } from '../../lib/social-feed.js';
-import { istLong, istDate } from '../../lib/ist.js';
 import { db } from '../../lib/supabase.js';
+import { istLong, istDate } from '../../lib/ist.js';
 
-const origin = (Astro.site?.origin ?? Astro.url.origin).replace(/\/$/, '');
+const day = istDate();
 
-// ?date=... previews another day, so a festival card can be checked before it
-// comes round. The image route bounds how far either way.
-const asked = Astro.url.searchParams.get('date');
-const forced = Astro.url.searchParams.get('force');
-const now = asked ? new Date(`${asked}T09:00:00+05:30`) : new Date();
-
-let plan = null;
+/*
+ * The reel is encoded on a real machine, because Vercel cannot do video. This
+ * page only looks for one. Not finding it is the normal state on a day the
+ * script has not run, and it says so rather than showing a dead player.
+ */
+let reel = null;
+let caption = '';
 let failed = null;
+
 try {
-  plan = await planRotation({ now, faqs: await faqPool(), force: forced });
+  const { data, error } = await db.storage.from('reels').list('', { limit: 300 });
+  if (error) throw new Error(error.message);
+
+  const todays = (data ?? [])
+    .filter((f) => f.name.startsWith(`${day}-`) && f.name.endsWith('.mp4'))
+    .sort((a, b) => String(b.updated_at ?? '').localeCompare(String(a.updated_at ?? '')));
+
+  if (todays[0]) {
+    const name = todays[0].name;
+    const base = name.replace(/\.mp4$/, '');
+    reel = {
+      name,
+      pillar: base.slice(day.length + 1),
+      url: db.storage.from('reels').getPublicUrl(name).data.publicUrl,
+      mb: todays[0].metadata?.size ? (todays[0].metadata.size / 1048576).toFixed(1) : null,
+    };
+    const txt = await fetch(db.storage.from('reels').getPublicUrl(`${base}.txt`).data.publicUrl);
+    if (txt.ok) caption = (await txt.text()).trim();
+  }
 } catch (err) {
   failed = String(err?.message ?? err);
 }
 
-const caption = plan ? fullCaption(plan) : '';
-const images = plan ? cardUrls(plan, origin) : [];
-const stories = plan ? cardUrls(plan, origin, { story: true }) : [];
-const day = plan?.today ?? istDate(now);
-
-const PILLARS = ['openings', 'sarkari', 'education', 'closing', 'industry', 'walkins', 'roundup'];
-
 /*
- * Today's reel, if one has been built and uploaded.
+ * Caption and hashtags get separate copy buttons.
  *
- * The video is made on a real machine — Vercel cannot encode one — so the
- * page does not build it, it only looks for it. Absent is the normal state
- * on a day the script has not run, and the page says so rather than showing
- * a broken player.
+ * They are pasted into different boxes — the caption into the post, the tags
+ * often into the first comment — and nobody wants to hand-select a line of
+ * forty words on a phone.
  */
-let reel = null;
-if (plan) {
-  try {
-    const { data } = await db.storage.from('reels').list('', { limit: 200 });
-    const match = (data ?? []).find((f) => f.name === `${day}-${plan.kind}.mp4`);
-    if (match) {
-      reel = {
-        url: db.storage.from('reels').getPublicUrl(match.name).data.publicUrl,
-        mb: match.metadata?.size ? (match.metadata.size / 1048576).toFixed(1) : null,
-        name: match.name,
-      };
-    }
-  } catch { /* storage unreachable: the page still works without it */ }
-}
+const lines = caption.split('\n');
+const tagLine = [...lines].reverse().find((l) => l.trim().startsWith('#'))?.trim() ?? '';
+const withoutTags = caption.replace(tagLine, '').replace(/\n+$/, '').trim();
+const [post, note = ''] = withoutTags.split('\n--\n');
 ---
 
 <Base
-  title={`Today's post — ${plan?.headline ?? 'JoBmania'}`}
-  description="The daily Instagram post, ready to save and publish."
+  title={`Today's reel — ${reel?.pillar ?? 'JoBmania'}`}
+  description="The daily Instagram reel, ready to post."
   noindex={true}
   maxAge={0}
 >
   <main class="wrap">
     <header class="head">
-      <p class="eyebrow">Instagram · {istLong(day)}</p>
-      <h1>{plan?.headline ?? 'Nothing to post'}</h1>
-      {plan && (
+      <p class="eyebrow">Reel · {istLong(day)}</p>
+      <h1>{reel ? 'Ready to post' : 'Not built yet'}</h1>
+      {reel && (
         <p class="meta">
-          <span class="pill">{plan.kind}</span>
-          {plan.scheduled && plan.scheduled !== plan.kind && (
-            <span class="warn">fell back from {plan.scheduled}</span>
-          )}
-          {plan.needsHumanApproval && (
-            <span class="warn">check this one before posting</span>
-          )}
+          <span class="pill">{reel.pillar}</span>
+          {reel.mb && <span class="dim">{reel.mb} MB</span>}
         </p>
       )}
     </header>
 
-    {failed && <p class="err">Could not build today's post: {failed}</p>}
-    {!plan && !failed && <p class="err">No pillar had material today. Nothing should be posted.</p>}
+    {failed && <p class="err">Could not reach storage: {failed}</p>}
 
-    {plan && (
+    {!reel && !failed && (
+      <p class="err">
+        Run <code>npm run reel:deliver</code> and reload. The video is encoded on a real
+        machine — Vercel cannot do it.
+      </p>
+    )}
+
+    {reel && (
       <>
-        <section class="cards">
-          {images.map((src, i) => (
-            <figure class="card">
-              <img src={src} alt={`Card ${i + 1} of ${images.length}`} loading={i === 0 ? 'eager' : 'lazy'} width="1080" height="1080" />
-              <figcaption>
-                <span>{i + 1} / {images.length} · {plan.slides[i].type}</span>
-                <a href={src} download={`jobmania-${day}-${i + 1}.png`}>Save</a>
-              </figcaption>
-            </figure>
-          ))}
-        </section>
+        <video src={reel.url} controls playsinline preload="metadata" class="reel"></video>
+
+        <div class="actions">
+          <a class="btn primary" href={reel.url} download={reel.name}>Save video</a>
+          <button type="button" class="btn" data-copy="post">Copy caption</button>
+          <button type="button" class="btn" data-copy="tags">Copy hashtags</button>
+        </div>
 
         <section class="block">
-          <div class="blockhead">
-            <h2>Caption</h2>
-            <button type="button" class="copy" data-copy="caption">Copy</button>
-          </div>
-          <pre id="caption">{caption}</pre>
+          <h2>Caption</h2>
+          <pre id="post">{post}</pre>
         </section>
 
-        {reel && (
+        {tagLine && (
           <section class="block">
-            <div class="blockhead">
-              <h2>Today's reel</h2>
-              <a class="copy" href={reel.url} download={reel.name}>Save video</a>
-            </div>
-            <video src={reel.url} controls playsinline preload="metadata" class="reel"></video>
-            <p class="note">
-              {reel.mb && <>{reel.mb} MB · </>}Silent on purpose. Add a trending sound in the
-              Instagram app — music cannot be attached by any API, Meta's own included.
-            </p>
+            <h2>Hashtags</h2>
+            <pre id="tags">{tagLine}</pre>
           </section>
         )}
 
-        {!reel && (
-          <section class="block">
-            <h2>Today's reel</h2>
-            <p class="note">
-              Not built yet. Run <code>npm run reel:deliver</code> and reload — the video is
-              encoded on a real machine, because Vercel cannot do it.
-            </p>
-          </section>
-        )}
-
-        <section class="block">
-          <h2>Reel frames</h2>
-          <p class="note">
-            Save the tall versions, then build the reel in the Instagram app so you can add a
-            trending sound. Music can only be attached in the app — no API can do it, including
-            Meta's own.
-          </p>
-          <ul class="tall">
-            {stories.map((src, i) => (
-              <li><a href={src} download={`jobmania-${day}-${i + 1}-story.png`}>Save tall card {i + 1} · 1080×1920</a></li>
-            ))}
-          </ul>
-        </section>
-
-        <section class="block">
-          <h2>Other days</h2>
-          <p class="note">Preview any pillar, or a festival before it arrives.</p>
-          <ul class="days">
-            {PILLARS.map((p) => (
-              <li><a href={`/social/today?force=${p}`} class={p === plan.kind ? 'on' : ''}>{p}</a></li>
-            ))}
-          </ul>
-          <p class="note">
-            Feeds for an automation tool:
-            <a href="/social/feed.json">feed.json</a> · <a href="/social/feed.xml">feed.xml</a>
-          </p>
-        </section>
+        <p class="note">
+          Share it as a Reel, not a post, and add a trending sound in the app first. Music
+          cannot be attached by any API, Meta’s own included, and a silent reel gets a
+          fraction of the reach.
+        </p>
       </>
     )}
   </main>
 </Base>
 
 <style>
-  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px 80px; }
-  .head { margin-bottom: 28px; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 28px 16px 72px; }
+  .head { margin-bottom: 20px; }
   .eyebrow {
-    font-size: .8rem; letter-spacing: .12em; text-transform: uppercase;
+    font-size: .78rem; letter-spacing: .13em; text-transform: uppercase;
     color: var(--ink-3); margin: 0 0 8px;
   }
-  h1 { font-family: var(--display); font-size: clamp(1.6rem, 5vw, 2.4rem); line-height: 1.15; margin: 0; }
-  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
-  .pill, .warn {
-    font-size: .8rem; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  h1 { font-family: var(--display); font-size: clamp(1.6rem, 6vw, 2.2rem); line-height: 1.12; margin: 0; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0 0; }
+  .pill {
+    font-size: .78rem; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+    background: var(--glass-chip); border: 1px solid var(--hairline); color: var(--ink-2);
   }
-  .pill { background: var(--glass-chip); border: 1px solid var(--hairline); color: var(--ink-2); }
-  .warn { background: var(--warn-soft); border: 1px solid var(--warn-line); color: var(--warn-ink); }
+  .dim { font-size: .82rem; color: var(--ink-3); }
   .err {
     padding: 16px; border-radius: 12px; background: var(--warn-soft);
-    border: 1px solid var(--warn-line); color: var(--warn-ink);
-  }
-
-  .cards { display: grid; gap: 18px; margin: 0 0 32px; }
-  @media (min-width: 620px) { .cards { grid-template-columns: 1fr 1fr; } }
-  .card { margin: 0; }
-  .card img {
-    width: 100%; height: auto; display: block; border-radius: 14px;
-    border: 1px solid var(--hairline);
-  }
-  .card figcaption {
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: .82rem; color: var(--ink-3); margin-top: 8px;
-  }
-  .card figcaption a {
-    font-weight: 700; color: var(--on-anchor); background: var(--anchor);
-    padding: 7px 16px; border-radius: 999px; text-decoration: none;
-  }
-
-  .block { margin: 0 0 30px; }
-  .blockhead { display: flex; align-items: center; justify-content: space-between; }
-  h2 { font-family: var(--display); font-size: 1.1rem; margin: 0 0 10px; }
-  .copy {
-    font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer;
-    background: var(--anchor); color: var(--on-anchor); border: 0;
-    padding: 8px 18px; border-radius: 999px;
-  }
-  .reel {
-    width: 100%; max-width: 320px; display: block; border-radius: 14px;
-    border: 1px solid var(--hairline); background: #000; margin: 4px 0 10px;
+    border: 1px solid var(--warn-line); color: var(--warn-ink); line-height: 1.5;
   }
   code {
-    font-size: .88em; padding: 2px 6px; border-radius: 5px;
+    font-size: .9em; padding: 2px 6px; border-radius: 5px;
     background: var(--glass-chip); border: 1px solid var(--hairline);
   }
+
+  .reel {
+    width: 100%; display: block; border-radius: 16px; background: #000;
+    border: 1px solid var(--hairline); aspect-ratio: 9 / 16;
+  }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 28px; }
+  .btn {
+    font: inherit; font-size: .9rem; font-weight: 700; cursor: pointer;
+    padding: 12px 20px; border-radius: 999px; min-height: 44px;
+    border: 1px solid var(--hairline); background: var(--glass-chip);
+    color: var(--ink-2); text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+  .btn.primary { background: var(--anchor); color: var(--on-anchor); border-color: var(--anchor); }
+
+  .block { margin: 0 0 22px; }
+  h2 { font-family: var(--display); font-size: 1rem; margin: 0 0 8px; }
   pre {
     white-space: pre-wrap; overflow-wrap: anywhere; margin: 0;
-    padding: 16px; border-radius: 12px; background: var(--glass);
+    padding: 15px; border-radius: 12px; background: var(--glass);
     border: 1px solid var(--hairline); font: inherit; font-size: .92rem;
-    line-height: 1.5; color: var(--ink-2);
+    line-height: 1.55; color: var(--ink-2);
   }
-  .note { font-size: .9rem; color: var(--ink-3); line-height: 1.5; }
-  .tall, .days { list-style: none; padding: 0; margin: 12px 0 0; }
-  .tall li { margin-bottom: 8px; }
-  .tall a { color: var(--accent); font-weight: 600; }
-  .days { display: flex; flex-wrap: wrap; gap: 8px; }
-  .days a {
-    display: block; padding: 7px 14px; border-radius: 999px;
-    border: 1px solid var(--hairline); background: var(--glass-chip);
-    color: var(--ink-2); text-decoration: none; font-size: .85rem; font-weight: 600;
-  }
-  .days a.on { background: var(--anchor); color: var(--on-anchor); border-color: var(--anchor); }
+  .note { font-size: .88rem; color: var(--ink-3); line-height: 1.55; margin: 0 0 12px; }
 </style>
 
 <script>
-  // Copy the caption. navigator.clipboard needs a secure context and is absent
-  // in a few mobile in-app browsers, so a failure says so rather than pretending.
-  document.querySelector('.copy')?.addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    const text = document.getElementById('caption')?.textContent ?? '';
-    try {
-      await navigator.clipboard.writeText(text);
-      btn.textContent = 'Copied';
-    } catch {
-      btn.textContent = 'Select it by hand';
-    }
-    setTimeout(() => { btn.textContent = 'Copy'; }, 2200);
-  });
+  // navigator.clipboard needs a secure context and is missing from a few
+  // mobile in-app browsers, so a failure says so rather than doing nothing.
+  for (const btn of document.querySelectorAll('[data-copy]')) {
+    btn.addEventListener('click', async () => {
+      const text = document.getElementById(btn.dataset.copy)?.textContent ?? '';
+      const was = btn.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied';
+      } catch {
+        btn.textContent = 'Select it by hand';
+      }
+      setTimeout(() => { btn.textContent = was; }, 2000);
+    });
+  }
 </script>
