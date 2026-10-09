@@ -28,7 +28,7 @@ import { writeFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import HME from 'h264-mp4-encoder';
 import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
-import { pickSubject, record, allUsed, daysSince, load as loadHistory } from './lib/reel-history.js';
+import { pickSubject, record, allUsed, allRecent, daysSince, load as loadHistory } from './lib/reel-history.js';
 import { slideSvg, STORY } from './lib/render.js';
 import { reelFrames, reelCaption, subjectCount, NO_REEL } from './lib/reel.js';
 import { zoomPan, outQuint, progress } from './lib/reel-motion.js';
@@ -183,6 +183,25 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
    * would index the new pillar's list with the old pillar's position — a
    * silent off-by-whatever that picks an unrelated job.
    */
+  /*
+   * When the well is dry, go to the news.
+   *
+   * The recycler never fails — it serves the oldest subject again — but a
+   * pillar whose every subject went out in the last fortnight has nothing to
+   * say that was not said recently. The news pool is six searches deep and
+   * turns over daily, so it is the one source that is reliably new.
+   *
+   * Only when there is somewhere to go: if the news is also empty, the
+   * recycled subject stands, because a repeat beats a missing day.
+   */
+  if (!force && plan.kind !== 'industry' && allRecent(plan, 14, history)) {
+    const fresh = await planRotation({ now, faqs, force: 'industry' });
+    if (fresh && !allRecent(fresh, 14, history)) {
+      say('every subject used recently; switching to news' + String.fromCharCode(10));
+      plan = fresh;
+    }
+  }
+
   const chosen = pick ?? pickSubject(plan, history);
   const cards = reelFrames(plan, { pick: chosen });
   const say = (s) => { if (!quiet) process.stdout.write(s); };

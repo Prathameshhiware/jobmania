@@ -48,13 +48,25 @@ function save(entries) {
  */
 export function subjectKey(plan, pick = 0) {
   if (plan.kind === 'roundup') return `roundup:${plan.today}`;
-  if (plan.subject) {
-    const s = plan.subject;
-    return `${plan.kind}:${String(s.title ?? s.body ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70)}`;
-  }
+
+  const slug = (v) => String(v).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70);
+
+  /*
+   * The list is checked before the single subject, not after.
+   *
+   * A pillar can carry both: the news pillar sets `subject` to the lead story
+   * for the carousel and `subjects` to the whole pool for reels. Reading
+   * `subject` first returned the lead story's key whatever the pick was, so
+   * every news reel looked already-used after the first one.
+   */
   if (plan.subjects?.length) {
     const j = plan.subjects[pick % plan.subjects.length];
-    return `${plan.kind}:${j.slug ?? `${j.company_name}-${j.title}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70)}`;
+    // A job row has a slug; a news story has a headline and a publisher.
+    return `${plan.kind}:${slug(j.slug ?? (j.company_name ? `${j.company_name}-${j.title}` : `${j.source}-${j.title}`))}`;
+  }
+  if (plan.subject) {
+    const s = plan.subject;
+    return `${plan.kind}:${slug(s.title ?? s.body ?? '')}`;
   }
   // education and anything else single-shot: the headline identifies it.
   return `${plan.kind}:${String(plan.headline).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 70)}`;
@@ -106,6 +118,25 @@ export function pickSubject(plan, entries = load()) {
     if (rank < bestRank) { bestRank = rank; best = i; }
   }
   return best;
+}
+
+/**
+ * True when every subject in this plan was covered within `days`.
+ *
+ * Distinct from allUsed: a pillar whose twelve openings were all covered
+ * three months ago is fine to come round again, while one whose subjects all
+ * went out last week is stale even though the recycler would happily serve
+ * the oldest. This is the test for "reach for something fresher instead".
+ */
+export function allRecent(plan, days = 14, entries = load()) {
+  const n = plan.subjects?.length ?? 0;
+  if (!n) return false;
+  const cutoff = Date.now() - days * 864e5;
+  const recent = new Set(
+    entries.filter((e) => Date.parse(e.at) >= cutoff).map((e) => e.key),
+  );
+  for (let i = 0; i < n; i++) if (!recent.has(keyAt(plan, i))) return false;
+  return true;
 }
 
 /** True when every subject in this plan has been covered before. */

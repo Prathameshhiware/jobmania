@@ -491,13 +491,38 @@ export function leadScore(s) {
   return score;
 }
 
-/** Hiring and funding news, with our own listings joined on where they match. */
+/*
+ * Every news topic, fetched together and ranked as one pool.
+ *
+ * Six searches rather than one, because a single wide query returns the same
+ * twenty business stories and none of the hiring news underneath them. They
+ * run in parallel: six sequential fetches would dominate the build.
+ *
+ * Deduplicated across topics, since a TCS headcount story legitimately
+ * matches both the industry and the fresher-hiring search.
+ */
+async function allNews() {
+  const topics = [
+    ['industry', 30], ['freshers', 21], ['gcc', 21],
+    ['ai', 21], ['pay', 30], ['funding', 10],
+  ];
+  const batches = await Promise.all(
+    topics.map(([name, days]) => topicStories(name, { want: 6, days })),
+  );
+  const seen = new Set();
+  const out = [];
+  for (const story of batches.flat()) {
+    const key = String(story.title).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().slice(0, 60);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(story);
+  }
+  return out.sort((a, b) => leadScore(b) - leadScore(a) || b.date.localeCompare(a.date));
+}
+
+/** Hiring news, with our own listings joined on where they match. */
 async function pillarIndustry({ live }) {
-  const [hiring, funding] = await Promise.all([
-    topicStories('industry', { want: 4, days: 30 }),
-    topicStories('funding', { want: 3, days: 10 }),
-  ]);
-  const stories = [...hiring, ...funding].sort((a, b) => b.date.localeCompare(a.date));
+  const stories = await allNews();
   if (!stories.length) return null;
 
   const companies = [...new Set(live.map((j) => j.company_name))];
@@ -509,6 +534,7 @@ async function pillarIndustry({ live }) {
     kind: 'industry',
     external: true,
     subject: lead,
+    subjects: stories.slice(0, 12),
     headline: lead.title.slice(0, 60),
     slides: [
       { type: 'hero', kicker: 'This week in hiring', title: lead.title, sub: lead.source },

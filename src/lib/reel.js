@@ -237,11 +237,13 @@ export function reelFrames(plan, { pick = 0 } = {}) {
   if (plan.kind === 'education') raw = educationReel(plan);
   else if (plan.kind === 'roundup') raw = roundupReel(plan);
   else if (plan.kind === 'festival') raw = null;
-  else if (plan.subject) raw = BUILDERS[plan.kind]?.(plan.subject, plan) ?? null;
   else if (plan.subjects?.length) {
+    // Before plan.subject, so a pillar carrying both — news sets the lead
+    // story for the carousel and the whole pool for reels — honours the pick
+    // instead of always building the lead.
     const j = plan.subjects[pick % plan.subjects.length];
     raw = BUILDERS[plan.kind]?.(j, plan) ?? null;
-  }
+  } else if (plan.subject) raw = BUILDERS[plan.kind]?.(plan.subject, plan) ?? null;
 
   // Festival days, and anything a builder cannot handle, fall back to the
   // carousel's own slides rather than failing. A greeting is one idea already.
