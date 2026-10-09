@@ -65,6 +65,62 @@ function loadFaqs() {
  * real outcome on a quiet day and not an error. Nothing is invented to fill
  * the slot.
  */
+/*
+ * A card, with its text progressively revealed.
+ *
+ * Every state carries `fit`: the complete text, used only to choose the type
+ * size. Without it the size is picked from whatever is revealed so far, so a
+ * headline starts huge and shrinks as its own words arrive — the text jumping
+ * size on every cut, which looks like a bug because it is one.
+ *
+ * Returns the states to cut between, ending with the whole thing. The main
+ * line arrives a word or two at a time and the supporting line arrives after
+ * it, which is the difference between text that lands and text that is merely
+ * present.
+ *
+ * Capped at six states. Beyond that the renders cost more than the effect is
+ * worth, and a line revealed in eight steps stops reading as emphasis and
+ * starts reading as a stutter.
+ */
+const MAX_STATES = 6;
+
+function revealSteps(text, max) {
+  const words = String(text ?? '').trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return words.length ? [words.join(' ')] : [];
+  // Several words at a time once a line is long, so a sentence does not take
+  // eight cuts to appear.
+  const per = words.length > 7 ? 3 : words.length > 4 ? 2 : 1;
+  const out = [];
+  for (let i = per; i < words.length; i += per) out.push(words.slice(0, i).join(' '));
+  out.push(words.join(' '));
+  return out.slice(-max);
+}
+
+function revealStates(slide) {
+  // A news card is a quotation with an attribution. Revealing someone else's
+  // headline word by word would read as our own sentence being composed.
+  if (slide.type === 'news' || slide.type === 'list' || slide.type === 'stat') return [slide];
+
+  if (slide.type === 'qa') {
+    const steps = revealSteps(slide.answer, MAX_STATES);
+    return steps.length ? steps.map((answer) => ({ ...slide, answer, fit: slide.answer })) : [slide];
+  }
+
+  if (slide.type === 'cta') {
+    // Title first, then the button. The link arriving last is the beat the
+    // whole card exists for.
+    const steps = revealSteps(slide.title, MAX_STATES - 1);
+    return [...steps.map((title) => ({ ...slide, title, body: '', link: null, fit: slide.title })),
+            { ...slide, fit: slide.title }];
+  }
+
+  // hero: the headline arrives, then the supporting line under it.
+  const steps = revealSteps(slide.title, slide.sub ? MAX_STATES - 1 : MAX_STATES);
+  const head = steps.map((title) => ({ ...slide, title, sub: '', fit: slide.title }));
+  if (slide.sub) return [...head, { ...slide, fit: slide.title }];
+  return head.length ? head : [slide];
+}
+
 async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], pick = 0 }) {
   let plan = await planRotation({ now, faqs, force });
   if (!plan) return null;
@@ -102,29 +158,45 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
   const t0 = Date.now();
 
   /*
-   * Each card is rasterised once, OVERSCAN pixels wider than the frame, so a
-   * 1080px window can slide across it afterwards. That is where the motion
-   * comes from: every frame becomes a row copy rather than a fresh layout and
-   * rasterise, which is four milliseconds instead of a thousand.
+   * Each card is rasterised at several reveal states, not once.
+   *
+   * Sliding a finished picture around is why this still read as a slideshow:
+   * the words themselves never moved. Rendering the card with its text
+   * progressively revealed — a few words at a time — and cutting between
+   * those states is what actually makes text arrive rather than sit there.
+   *
+   * It is affordable because the states are per card, not per frame. A dozen
+   * cards at five states each is sixty renders, about a minute; a unique
+   * render for all 900 frames would be a quarter of an hour.
+   *
+   * Cards are still OVERSCAN pixels wider than the frame, so the held part of
+   * a beat can drift for free on top of the reveal.
    *
    * Tone alternates, starting dark. Pale cards on a pale feed are what a thumb
-   * slides past, and a hard cut between dark and light every couple of seconds
-   * is most of what makes this read as a video rather than a slideshow. The
-   * closing card is forced dark so the call to action lands hardest.
+   * slides past, and the closing card is forced dark so the call to action
+   * lands hardest.
    */
   const WIDE = W + OVERSCAN;
-  const buffers = [];
+  const shots = [];                     // { buffers: [...states], card }
+  let renders = 0;
   for (let i = 0; i < cards.length; i++) {
     const tone = (i % 2 === 0 || i === cards.length - 1) ? 'dark' : 'light';
-    // total: 1 suppresses the "3 / 8" counter. That is a carousel affordance —
-    // it tells a reader how far there is left to swipe — and in a video nobody
-    // is swiping, so it is just a number that raises a question.
-    const svg = await slideSvg(cards[i].slide, {
-      kind: plan.kind, index: i, total: 1, url: plan.url, tone, reel: true,
-      size: { width: WIDE, height: H },
-    });
-    buffers.push(new Resvg(svg, { fitTo: { mode: 'width', value: WIDE } }).render().pixels);
-    say(`\r    rasterising ${i + 1}/${cards.length}`);
+    const states = revealStates(cards[i].slide);
+    const buffers = [];
+    for (const state of states) {
+      // total: 1 suppresses the "3 / 8" counter. That is a carousel
+      // affordance — it tells a reader how far there is left to swipe — and
+      // in a video nobody is swiping, so it is a number that raises a
+      // question.
+      const svg = await slideSvg(state, {
+        kind: plan.kind, index: i, total: 1, url: plan.url, tone, reel: true,
+        size: { width: WIDE, height: H },
+      });
+      buffers.push(new Resvg(svg, { fitTo: { mode: 'width', value: WIDE } }).render().pixels);
+      renders++;
+      say(`\r    rasterising card ${i + 1}/${cards.length}, ${renders} states`);
+    }
+    shots.push({ buffers, card: cards[i] });
   }
 
   const enc = await HME.createH264MP4Encoder();
@@ -165,20 +237,40 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
     return i % 2 === 0 ? travel : OVERSCAN - travel;
   };
 
+  // How long each reveal step is on screen before the next word arrives.
+  // Four frames is about an eighth of a second: fast enough to read as
+  // typing, slow enough to read.
+  const STEP = 4;
+
   let written = 0;
-  for (let i = 0; i < cards.length; i++) {
-    const span = Math.max(2, Math.round(cards[i].seconds * FPS));
+  for (let i = 0; i < shots.length; i++) {
+    const { buffers, card } = shots[i];
+    const span = Math.max(2, Math.round(card.seconds * FPS));
+
+    // The reveal runs at the start of the beat; whatever is left is the hold
+    // on the complete card. A card too short to reveal fully just shows the
+    // last states it has room for.
+    const reveal = Math.min(buffers.length - 1, Math.floor((span * 0.55) / STEP));
+    const first = buffers.length - 1 - reveal;
 
     for (let f = 0; f < span; f++) {
+      const step = Math.min(buffers.length - 1, first + Math.floor(f / STEP));
+      const src = buffers[step];
       const dx = offsetAt(i, f / (span - 1));
 
+      // Each new word punches in. The scale is small and the easing is hard,
+      // so it reads as the word landing rather than as the card zooming.
+      const intoStep = f % STEP;
+      const growing = f < reveal * STEP;
+
       if (f < PUNCH_FRAMES) {
-        // Lands oversized and settles. outQuint so almost all of the movement
-        // happens in the first couple of frames.
         const k = outQuint((f + 1) / PUNCH_FRAMES);
-        zoomPan(buffers[i], WIDE, H, W, H, 1 + (PUNCH_SCALE - 1) * (1 - k), dx, frame);
+        zoomPan(src, WIDE, H, W, H, 1 + (PUNCH_SCALE - 1) * (1 - k), dx, frame);
+      } else if (growing && intoStep < 2) {
+        const k = outQuint((intoStep + 1) / 2);
+        zoomPan(src, WIDE, H, W, H, 1 + 0.028 * (1 - k), dx, frame);
       } else {
-        pan(buffers[i], WIDE, W, H, dx, frame);
+        pan(src, WIDE, W, H, dx, frame);
       }
 
       progress(frame, W, H, written / totalFrames, PROGRESS_RGB);

@@ -185,7 +185,7 @@ const fitRaw = (text, max, min) => {
 
 const slideHero = (s, w) => [
   s.kicker ? kicker(s.kicker) : h({}),
-  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.title),
+  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.fit ?? s.title),
       color: C.ink, lineHeight: 1.08, letterSpacing: -1.5 }, s.title),
   s.sub
     ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(38), color: C.ink2,
@@ -221,14 +221,14 @@ const slideStat = (s, w) => [
 ];
 
 const slideQA = (s, w) => [
-  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.question, 64, 40),
+  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.fit ?? s.question, 64, 40),
       color: C.ink, lineHeight: 1.14, marginBottom: z(34), letterSpacing: -0.8 }, s.question),
-  t({ fontFamily: BODY, fontWeight: 400, fontSize: String(s.answer).length > 240 ? 30 : 36,
+  t({ fontFamily: BODY, fontWeight: 400, fontSize: String(s.fit ?? s.answer).length > 240 ? z(30) : z(36),
       color: C.ink2, lineHeight: 1.45 }, s.answer),
 ];
 
 const slideNews = (s, w) => [
-  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.title, 60, 38),
+  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.fit ?? s.title, 60, 38),
       color: C.ink, lineHeight: 1.18, letterSpacing: -0.8 }, s.title),
   h({ alignItems: 'center', marginTop: z(36) }, [
     h({ width: 8, height: 8, borderRadius: 8, background: C.accent, marginRight: z(14) }),
@@ -238,7 +238,7 @@ const slideNews = (s, w) => [
 ];
 
 const slideCTA = (s, w) => [
-  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.title, 64, 40),
+  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.fit ?? s.title, 64, 40),
       color: C.ink, lineHeight: 1.14, marginBottom: z(28), letterSpacing: -0.8 }, s.title),
   s.body ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(34), color: C.ink2, lineHeight: 1.4 }, s.body) : h({}),
   s.link
@@ -249,7 +249,7 @@ const slideCTA = (s, w) => [
 ];
 
 const slideFestival = (s, w) => [
-  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.greeting, 110, 56),
+  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.fit ?? s.greeting, 110, 56),
       color: C.ink, lineHeight: 1.04, letterSpacing: -2 }, s.greeting),
   s.line ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(38), color: C.ink2, marginTop: z(34) }, s.line) : h({}),
 ];
