@@ -363,7 +363,7 @@ function glossaryPost(t) {
             body: `Defined under the ${t.act}. Rates and limits change, so confirm the current position before you rely on it.`,
             link: t.source }
         : { type: 'cta', title: 'Why it matters', body: t.why,
-            link: `${SITE}${t.path ?? '/insights'}` },
+            link: `${SITE}${t.path ?? `/glossary#${termSlug(t.term)}`}` },
     ],
     caption: [
       q,
@@ -375,7 +375,7 @@ function glossaryPost(t) {
         ? ['', `Defined under the ${t.act}. Rates and limits change by notification, so check ${t.source} for the current position rather than relying on this card.`]
         : []),
       '',
-      `${SITE}${t.path ?? '/insights'}`,
+      `${SITE}${t.path ?? `/glossary#${termSlug(t.term)}`}`,
     ].join('\n'),
     hashtags: ['jobterms', ...TAGS.education, ...BASE_TAGS],
   };

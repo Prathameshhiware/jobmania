@@ -55,6 +55,10 @@ export async function GET({ site }) {
 
     // Insights. The landing page always ships; a kind index only once it holds
     // something, so an empty section never enters the index as a thin page.
+    // Reference content: rarely changes, and every entry is a term people
+    // search for by name.
+    url('/glossary', new Date(), 'monthly', '0.7'),
+
     url('/insights', new Date(), 'weekly', '0.7'),
     ...KIND_ORDER
       .filter((k) => articles.some((e) => e.data.kind === k))
