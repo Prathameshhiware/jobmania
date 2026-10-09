@@ -22,10 +22,9 @@ import { lookup } from './glossary.js';
 import { istShort, istLong } from './ist.js';
 import { cleanCompany } from './rotation.js';
 
-const SECONDS = 30;
 
 /*
- * Weights, normalised to SECONDS at the end, not literal durations.
+ * Hold multipliers, not durations.
  *
  * The first version held six cards across thirty seconds, which forces five
  * seconds a card however the weights are set — and five seconds on a static
@@ -210,15 +209,16 @@ const BUILDERS = {
 };
 
 /**
- * The frames of one reel, each with how long it holds.
+ * The cards of one reel, each with a hold multiplier.
  *
  * `pick` chooses which subject when a pillar has several, so a week of reels
  * covers a week of different drives rather than the same one every day.
  *
- * Returns [{ slide, seconds }] normalised to thirty seconds, so a subject with
- * four beats and one with six both come out the right length.
+ * Returns [{ slide, weight }]. The weight scales the reading pause after a
+ * card's text has finished arriving; the arrival itself is timed by the
+ * encoder from the number of reveal states.
  */
-export function reelFrames(plan, { seconds = SECONDS, pick = 0 } = {}) {
+export function reelFrames(plan, { pick = 0 } = {}) {
   let raw = null;
 
   if (plan.kind === 'education') raw = educationReel(plan);
@@ -239,13 +239,13 @@ export function reelFrames(plan, { seconds = SECONDS, pick = 0 } = {}) {
     }));
   }
 
-  const list = raw.filter(Boolean);
-  const total = list.reduce((a, f) => a + f.weight, 0);
-  return list.map((f) => ({ slide: f.slide, seconds: (f.weight / total) * seconds }));
+  // No normalising to a fixed length. The weights are hold multipliers, and
+  // the encoder works out how long each card actually needs from how much
+  // text is on it. A reel is as long as its content, not padded to a round
+  // number — which is what left two and a half dead seconds on every beat.
+  return raw.filter(Boolean).map((f) => ({ slide: f.slide, weight: f.weight / BEAT }));
 }
 
 /** How many different reels this plan could make today. */
 export const subjectCount = (plan) =>
   plan?.subjects?.length ? plan.subjects.length : 1;
-
-export const REEL_SECONDS = SECONDS;

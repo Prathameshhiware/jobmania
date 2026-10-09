@@ -28,12 +28,29 @@ import HME from 'h264-mp4-encoder';
 import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
 import { slideSvg, STORY } from './lib/render.js';
-import { reelFrames, REEL_SECONDS, subjectCount, NO_REEL } from './lib/reel.js';
+import { reelFrames, subjectCount, NO_REEL } from './lib/reel.js';
 import { zoomPan, outQuint, progress } from './lib/reel-motion.js';
 import { istDate, istDatePlus } from './lib/ist.js';
 
 const FPS = 30;
 const OUT_DIR = './.preview-cards/';
+/*
+ * Timing is derived, not allotted.
+ *
+ * STEP is how long one group of words is on screen before the next arrives.
+ * READ is roughly how long a word takes to read, and sets the pause after a
+ * card has finished appearing. A card therefore costs exactly what its own
+ * text costs, and a reel is as long as the sum of its cards.
+ *
+ * The old way fixed the reel at thirty seconds and divided it up, which meant
+ * a six word line revealed in half a second and then sat there for two and a
+ * half. Short reels also loop, and a loop counts again.
+ */
+const STEP = 3;                          // frames per reveal step, 0.1s
+const READ_PER_WORD = 0.17;              // seconds
+const MIN_HOLD = 0.58;                   // seconds, after the text has landed
+const MAX_HOLD = 1.70;                   // seconds
+
 const PROGRESS_RGB = [173, 179, 247];   // --accent dark value: legible on both tones
 const { width: W, height: H } = STORY;
 
@@ -194,7 +211,14 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
       renders++;
       say(`\r    rasterising card ${i + 1}/${cards.length}, ${renders} states`);
     }
-    shots.push({ buffers, card: cards[i] });
+    const words = String(
+      states.at(-1).title ?? states.at(-1).answer ?? states.at(-1).question ?? ''
+    ).trim().split(/\s+/).filter(Boolean).length;
+    const revealF = (buffers.length - 1) * STEP;
+    const holdS = Math.min(MAX_HOLD, Math.max(MIN_HOLD, words * READ_PER_WORD)) * cards[i].weight;
+    const span = Math.max(STEP * 2, revealF + Math.round(holdS * FPS));
+
+    shots.push({ buffers, card: cards[i], span });
   }
 
   const enc = await HME.createH264MP4Encoder();
@@ -221,7 +245,7 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
    */
   const PUNCH_FRAMES = Math.round(0.22 * FPS);
   const PUNCH_SCALE = 1.1;
-  const totalFrames = cards.reduce((a, c) => a + Math.round(c.seconds * FPS), 0);
+  const totalFrames = shots.reduce((a, sh) => a + sh.span, 0);
 
   // Reused across every frame. Allocating 8MB nine hundred times gives the
   // garbage collector more work than the encoder has.
@@ -237,20 +261,14 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
    * each card landing slightly oversized and settling.
    */
 
-  // How long each reveal step is on screen before the next word arrives.
-  // Four frames is about an eighth of a second: fast enough to read as
-  // typing, slow enough to read.
-  const STEP = 4;
-
   let written = 0;
   for (let i = 0; i < shots.length; i++) {
-    const { buffers, card } = shots[i];
-    const span = Math.max(2, Math.round(card.seconds * FPS));
+    const { buffers, span } = shots[i];
 
     // The reveal runs at the start of the beat; whatever is left is the hold
     // on the complete card. A card too short to reveal fully just shows the
     // last states it has room for.
-    const reveal = Math.min(buffers.length - 1, Math.floor((span * 0.55) / STEP));
+    const reveal = buffers.length - 1;
     const first = buffers.length - 1 - reveal;
 
     for (let f = 0; f < span; f++) {
@@ -292,6 +310,7 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
   return {
     file, plan, cards,
     pick,
+    spans: shots.map((sh) => sh.span / FPS),
     bytes: mp4.length,
     seconds: written / FPS,
     ms: Date.now() - t0,
@@ -310,7 +329,8 @@ if (arg1 === 'week') {
   // bundled into a single video. Seven days is the whole cycle, so this is a
   // week of posts in one run.
   const days = Number(arg2) || 7;
-  console.log(`Building ${days} reels, one per day, ${REEL_SECONDS}s each at ${FPS}fps\n`);
+  console.log(`Building ${days} reels, one per day, at ${FPS}fps.`);
+  console.log('Each runs as long as its own content needs.\n');
 
   const made = [];
   for (let d = 0; d < days; d++) {
@@ -362,7 +382,7 @@ if (arg1 === 'week') {
   console.log(`  built in ${(r.ms / 1000).toFixed(1)}s`);
   if (r.plan.needsHumanApproval) console.log('  NOTE: flagged for review before posting.');
   console.log('\nCards:');
-  r.cards.forEach((c) => console.log(`  ${String(c.seconds.toFixed(1)).padStart(4)}s  ${c.slide.type.padEnd(8)} ${String(c.slide.title ?? c.slide.question ?? '').slice(0, 52)}`));
+  r.spans.forEach((sec, i) => console.log(`  ${String(sec.toFixed(1)).padStart(4)}s  ${r.cards[i].slide.type.padEnd(8)} ${String(r.cards[i].slide.title ?? r.cards[i].slide.question ?? '').slice(0, 52)}`));
   console.log('\nCaption:\n' + caption(r.plan).split('\n').map((l) => '  ' + l).join('\n'));
   console.log('\nAdd a trending sound in the Instagram app. No API can attach licensed audio.');
 }
