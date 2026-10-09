@@ -8,8 +8,9 @@ REM nothing.
 REM
 REM Register it to run every morning at 08:30 with:
 REM
-REM   schtasks /create /tn "JoBmania daily reel" ^
-REM     /tr "\"%~f0\"" /sc daily /st 08:30
+REM   Register-ScheduledTask -TaskName "JoBmania daily reel" -Action (
+REM     New-ScheduledTaskAction -Execute "<this file>") -Trigger (
+REM     New-ScheduledTaskTrigger -Daily -At 08:30)
 REM
 REM Remove it again with:
 REM
