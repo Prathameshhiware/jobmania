@@ -22,7 +22,8 @@
     "prebuild": "node scripts/inline-fonts.mjs",
     "reel": "node scripts/inline-fonts.mjs && node src/make-reel.js",
     "reel:deliver": "node scripts/inline-fonts.mjs && node src/make-reel.js deliver",
-    "doctor": "node src/doctor.js"
+    "doctor": "node src/doctor.js",
+    "reel:batch": "node scripts/inline-fonts.mjs && node src/make-reel.js batch"
   },
   "overrides": {
     "htmlparser2": "^9.1.0",

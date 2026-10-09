@@ -24,11 +24,11 @@
 // transitions are cross-faded by blending two buffers in JS. Rasterising all
 // 900 frames would take about fifteen minutes; this takes a hundred seconds.
 
-import { writeFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readdirSync, readFileSync, copyFileSync } from 'node:fs';
 import HME from 'h264-mp4-encoder';
 import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
-import { pickSubject, record, allUsed, allRecent, daysSince, load as loadHistory } from './lib/reel-history.js';
+import { pickSubject, record, allUsed, allRecent, daysSince, subjectKey, load as loadHistory } from './lib/reel-history.js';
 import { slideSvg, STORY } from './lib/render.js';
 import { reelFrames, reelCaption, subjectCount, NO_REEL } from './lib/reel.js';
 import { zoomPan, outQuint, progress } from './lib/reel-motion.js';
@@ -143,6 +143,43 @@ function revealStates(slide) {
   const head = steps.map((title) => ({ ...slide, title, sub: '', fit: slide.title }));
   if (slide.sub) return [...head, { ...slide, fit: slide.title }];
   return head.length ? head : [slide];
+}
+
+
+/*
+ * How long a reel stays true.
+ *
+ * The reason a batch is risky: most of these pillars state something that is
+ * only a fact today. A closing reel names a deadline, a sarkari reel carries
+ * a notification, an openings reel points at a role that can be filled next
+ * week. Rendering a month in advance does not make them wrong immediately —
+ * it makes them wrong silently, on a date nobody is watching.
+ *
+ * So each one is stamped with the last day it can honestly go out, and the
+ * index is ordered by that rather than by the date it was planned for.
+ */
+function shelfLife(plan, subject) {
+  const days = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+
+  switch (plan.kind) {
+    case 'education':
+      return { until: null, note: 'evergreen' };
+    case 'closing':
+      // The deadline is the shelf life. Nothing to estimate.
+      return subject?.valid_through
+        ? { until: subject.valid_through.slice(0, 10), note: 'states this deadline' }
+        : { until: days(4), note: 'states a deadline' };
+    case 'openings':
+      return { until: days(10), note: 'role may be filled' };
+    case 'sarkari':
+      return { until: days(7), note: 'notification may close' };
+    case 'industry':
+      return { until: days(10), note: 'headline goes stale' };
+    case 'roundup':
+      return { until: days(3), note: 'counts measured today' };
+    default:
+      return { until: days(7), note: '' };
+  }
 }
 
 async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], pick = null, history = [] }) {
@@ -367,7 +404,108 @@ const arg1 = process.argv[2] || null;
 const arg2 = process.argv[3] || null;
 const faqs = loadFaqs();
 
-if (arg1 === 'deliver') {
+if (arg1 === 'batch') {
+  /*
+   * A run of reels in one go, into their own folder.
+   *
+   * Asked for as thirty days of the rotation. The rotation is kept — every
+   * pillar takes its turn — and a pillar with nothing fresh to say is
+   * skipped rather than padded, which is what thin content should do.
+   *
+   * What a batch cannot fix is that most pillars are only true today. Each
+   * file is stamped with the last date it can honestly be posted, and
+   * CONTENT.md is ordered by that, so the perishable ones are at the top and
+   * the evergreen ones can wait.
+   */
+  const want = Number(arg2) || 30;
+  const OUT = './reels-30day/';
+  mkdirSync(OUT, { recursive: true });
+
+  console.log(`Building ${want} reels into ${OUT}`);
+  console.log('Rotation kept; a pillar with nothing fresh is skipped.' + String.fromCharCode(10));
+
+  let history = await loadHistory();
+  const made = [];
+  let day = 0;
+  let guard = 0;
+
+  while (made.length < want && guard < want * 3) {
+    guard++;
+    const date = istDatePlus(day++, new Date());
+    const now = new Date(`${date}T09:00:00+05:30`);
+    const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][istWeekday(now)];
+
+    const avoid = made.slice(-1).map((m) => m.plan.kind);
+    let r = null;
+    try {
+      r = await buildReel({ now, faqs, avoid, history, quiet: true });
+    } catch (err) {
+      console.log(`  ${wd} ${date}  build failed: ${String(err?.message ?? err).slice(0, 50)}`);
+      continue;
+    }
+    if (!r) { console.log(`  ${wd} ${date}  nothing to say, skipped`); continue; }
+
+    // Skipping a pillar that would only repeat what the last reel said.
+    const key = subjectKey(r.plan, r.pick);
+    if (made.some((m) => m.key === key)) {
+      console.log(`  ${wd} ${date}  ${r.plan.kind} had nothing new, skipped`);
+      continue;
+    }
+
+    const subject = r.plan.subjects?.[r.pick] ?? r.plan.subject ?? null;
+    const life = shelfLife(r.plan, subject);
+    const idx = String(made.length + 1).padStart(2, '0');
+    const stamp = `${idx}-${r.plan.kind}`;
+
+    copyFileSync(r.file, `${OUT}${stamp}.mp4`);
+    writeFileSync(`${OUT}${stamp}.txt`, reelCaption(r.plan, r.pick) + String.fromCharCode(10));
+
+    history = [...history, { key, company: subject?.company_name?.toLowerCase?.() ?? null,
+      pillar: r.plan.kind, date: r.plan.today, headline: r.plan.headline, at: new Date().toISOString() }];
+
+    made.push({ ...r, key, life, stamp, headline: r.plan.headline });
+    console.log(`  ${String(made.length).padStart(2)}/${want}  ${wd}  ${r.plan.kind.padEnd(10)} ` +
+      `${life.until ? 'post by ' + life.until : 'evergreen  '}  ${String(r.plan.headline).slice(0, 44)}`);
+  }
+
+  // Perishable first, so the ordering itself says what to do.
+  const sorted = [...made].sort((a, b) => (a.life.until ?? '9999').localeCompare(b.life.until ?? '9999'));
+
+  writeFileSync(`${OUT}CONTENT.md`, [
+    '# JoBmania reels — batch of ' + made.length,
+    '',
+    `Rendered ${istLong(new Date())}. Ordered by how long each stays true, not by`,
+    'the day it was planned for. Post the top ones first.',
+    '',
+    '| # | File | Pillar | Post by | Subject |',
+    '| --- | --- | --- | --- | --- |',
+    ...sorted.map((m) => `| ${m.stamp.slice(0, 2)} | ${m.stamp}.mp4 | ${m.plan.kind} | ` +
+      `${m.life.until ?? 'evergreen'} | ${String(m.headline).replace(/\|/g, '/').slice(0, 52)} |`),
+    '',
+    '## Why there is a post-by date',
+    '',
+    'Most of these state something that is only true now. A closing reel names',
+    'a deadline, a sarkari reel carries a notification, an openings reel points',
+    'at a role that can be filled next week. Rendered in advance they do not',
+    'become wrong loudly — they become wrong quietly, on a date nobody is',
+    'watching. Past its post-by date, rebuild rather than post.',
+    '',
+    'The education ones carry no date. A job term is as true in December.',
+    '',
+    '## Posting',
+    '',
+    'Each .mp4 has a .txt beside it with the caption and hashtags. Add a',
+    'trending sound in the Instagram app before sharing — no API can attach',
+    "music, including Meta's own, and a silent reel gets a fraction of the",
+    'reach.',
+    '',
+  ].join(String.fromCharCode(10)));
+
+  const perishable = made.filter((m) => m.life.until).length;
+  console.log(String.fromCharCode(10) + `${made.length} reels in ${OUT}`);
+  console.log(`  ${perishable} have a post-by date, ${made.length - perishable} are evergreen`);
+  console.log(`  captions beside each file, index in ${OUT}CONTENT.md`);
+} else if (arg1 === 'deliver') {
   /*
    * Today's reel, uploaded to Supabase Storage and linked from the site.
    *

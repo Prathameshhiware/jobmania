@@ -22,3 +22,6 @@ src/fonts/fonts.generated.js
 # that builds them.
 .reel-history.json
 .reel-log.txt
+
+# Batch-rendered reels. Large, regenerable, and perishable.
+reels-30day/
