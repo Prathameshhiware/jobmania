@@ -21,6 +21,17 @@ const origin = (Astro.site?.origin ?? 'https://jobmania.vercel.app').replace(/\/
 const href = canonical ?? new URL(Astro.url.pathname, `${origin}/`).href;
 const blocks = (Array.isArray(schema) ? schema : [schema]).filter(Boolean);
 
+/*
+ * Search Console ownership, when a token is configured.
+ *
+ * The HTML-tag method rather than the file-upload one, because a file in
+ * public/ is a token committed to a public repository. This reads from the
+ * environment, so the token lives in Vercel and nowhere else.
+ */
+const GSC = import.meta.env.GOOGLE_SITE_VERIFICATION
+  ?? process.env?.GOOGLE_SITE_VERIFICATION
+  ?? null;
+
 // Analytics only in production, and only when an id is configured.
 const GA_ID = import.meta.env.PROD
   ? (import.meta.env.PUBLIC_GA_ID ?? process.env?.PUBLIC_GA_ID ?? null)
@@ -41,6 +52,8 @@ const GA_ID = import.meta.env.PROD
   {noindex
     ? <meta name="robots" content="noindex, follow">
     : <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">}
+
+  {GSC && <meta name="google-site-verification" content={GSC} />}
 
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon.svg">
