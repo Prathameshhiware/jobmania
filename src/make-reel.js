@@ -32,6 +32,7 @@ import { pickSubject, record, allUsed, daysSince, load as loadHistory } from './
 import { slideSvg, STORY } from './lib/render.js';
 import { reelFrames, reelCaption, subjectCount, NO_REEL } from './lib/reel.js';
 import { zoomPan, outQuint, progress } from './lib/reel-motion.js';
+import { faststart } from './lib/mp4-faststart.js';
 import { istDate, istDatePlus, istLong } from './lib/ist.js';
 import { db } from './lib/supabase.js';
 
@@ -304,8 +305,17 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
   }
 
   enc.finalize();
-  const mp4 = Buffer.from(enc.FS.readFile(enc.outputFilename));
+  const raw = Buffer.from(enc.FS.readFile(enc.outputFilename));
   enc.delete();
+
+  /*
+   * The encoder writes the index after the frames. A browser reading the file
+   * from a URL never gets that far, so the player renders, shows 0:00 and
+   * sits black — which is exactly what it did. This is what ffmpeg calls
+   * faststart: the index moves to the front and every chunk offset in it is
+   * corrected for having moved.
+   */
+  const mp4 = faststart(raw);
 
   mkdirSync(OUT_DIR, { recursive: true });
   const suffix = subjectCount(plan) > 1 ? `-${String(pick + 1).padStart(2, '0')}` : '';
