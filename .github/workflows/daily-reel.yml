@@ -17,16 +17,17 @@
 # Both are secrets, never printed, and unavailable to pull requests from
 # forks — which matters here because the repository is public.
 
-name: Daily reel
+name: Daily reel (paused)
 
+# PAUSED. The daily schedule is commented out rather than deleted, so
+# turning it back on is uncommenting four lines. Only a manual run from the
+# Actions tab will build anything, and even that needs the two secrets which
+# were never added.
 on:
-  schedule:
-    # 03:00 UTC is 08:30 IST, because India is +5:30 and the half hour comes
-    # from the offset rather than from the minute field. Actions only accepts
-    # UTC, so this is the one place in the project where a time is not written
-    # in IST.
-    - cron: '0 3 * * *'
-  # So a reel can be built on demand without waiting for tomorrow.
+  # schedule:
+  #   # 03:00 UTC is 08:30 IST: India is +5:30, so the half hour comes from
+  #   # the offset, not the minute field. Actions only accepts UTC.
+  #   - cron: '0 3 * * *'
   workflow_dispatch:
 
 # One at a time. Two runs racing would both read the same history and could
