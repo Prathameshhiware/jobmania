@@ -158,6 +158,22 @@ function revealStates(slide) {
  * So each one is stamped with the last day it can honestly go out, and the
  * index is ordered by that rather than by the date it was planned for.
  */
+/*
+ * What this particular reel is about.
+ *
+ * plan.headline is the pillar's headline, which on a pooled pillar is the
+ * lead story — not the one that was picked. The index listed the lead five
+ * times while five different videos sat beside it.
+ */
+function headlineOf(r, subject) {
+  if (subject?.title && r.plan.subjects?.length) {
+    return subject.company_name
+      ? `${subject.company_name} — ${subject.title}`
+      : subject.title;
+  }
+  return r.plan.headline;
+}
+
 function shelfLife(plan, subject) {
   const days = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 
@@ -177,6 +193,10 @@ function shelfLife(plan, subject) {
       return { until: days(10), note: 'headline goes stale' };
     case 'roundup':
       return { until: days(3), note: 'counts measured today' };
+    case 'festival':
+      // Only true on the day itself. A Dussehra greeting posted on the 16th
+      // for a festival on the 20th is not early, it is wrong.
+      return { until: plan.today, note: 'post on the day only' };
     default:
       return { until: days(7), note: '' };
   }
@@ -435,7 +455,10 @@ if (arg1 === 'batch') {
     const now = new Date(`${date}T09:00:00+05:30`);
     const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][istWeekday(now)];
 
-    const avoid = made.slice(-1).map((m) => m.plan.kind);
+    // The last two, not just the last. Blocking only the previous one let
+    // closing take twelve of thirty slots: it always had another subject,
+    // so it won every slot it was allowed into.
+    const avoid = made.slice(-2).map((m) => m.plan.kind);
     let r = null;
     try {
       r = await buildReel({ now, faqs, avoid, history, quiet: true });
@@ -445,9 +468,18 @@ if (arg1 === 'batch') {
     }
     if (!r) { console.log(`  ${wd} ${date}  nothing to say, skipped`); continue; }
 
-    // Skipping a pillar that would only repeat what the last reel said.
+    /*
+     * Deduplicated on what the reel says, not on the subject key.
+     *
+     * A roundup's key carries its date, so four of them passed a key check
+     * while all saying "217 open to freshers, 60 walk-in drives" — the same
+     * counts, measured the same afternoon. Comparing the caption catches
+     * that, and anything else that comes out identical for a reason nobody
+     * predicted.
+     */
     const key = subjectKey(r.plan, r.pick);
-    if (made.some((m) => m.key === key)) {
+    const said = reelCaption(r.plan, r.pick);
+    if (made.some((m) => m.key === key || m.said === said)) {
       console.log(`  ${wd} ${date}  ${r.plan.kind} had nothing new, skipped`);
       continue;
     }
@@ -458,12 +490,12 @@ if (arg1 === 'batch') {
     const stamp = `${idx}-${r.plan.kind}`;
 
     copyFileSync(r.file, `${OUT}${stamp}.mp4`);
-    writeFileSync(`${OUT}${stamp}.txt`, reelCaption(r.plan, r.pick) + String.fromCharCode(10));
+    writeFileSync(`${OUT}${stamp}.txt`, said + String.fromCharCode(10));
 
     history = [...history, { key, company: subject?.company_name?.toLowerCase?.() ?? null,
       pillar: r.plan.kind, date: r.plan.today, headline: r.plan.headline, at: new Date().toISOString() }];
 
-    made.push({ ...r, key, life, stamp, headline: r.plan.headline });
+    made.push({ ...r, key, said, life, stamp, headline: headlineOf(r, subject) });
     console.log(`  ${String(made.length).padStart(2)}/${want}  ${wd}  ${r.plan.kind.padEnd(10)} ` +
       `${life.until ? 'post by ' + life.until : 'evergreen  '}  ${String(r.plan.headline).slice(0, 44)}`);
   }

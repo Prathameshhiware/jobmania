@@ -283,8 +283,21 @@ export function reelFrames(plan, { pick = 0 } = {}) {
  * not invention: it never adds a claim the carousel would not make.
  */
 export function reelCaption(plan, pick = 0) {
-  const j = plan.subjects?.length ? plan.subjects[pick % plan.subjects.length] : null;
-  const x = plan.subject ?? null;
+  /*
+   * One subject, used by every branch below.
+   *
+   * These were two separate lookups: the job row from the pool, and the news
+   * story from plan.subject. On a pillar that carries both — news sets the
+   * lead for the carousel and the pool for reels — the caption read the lead
+   * while the renderer used the pick, so five industry reels came out as five
+   * different videos under five identical captions, each describing a story
+   * that was not on screen. Worse than a repeat, because it reads as correct.
+   */
+  const picked = plan.subjects?.length
+    ? plan.subjects[pick % plan.subjects.length]
+    : (plan.subject ?? null);
+  const j = picked;
+  const x = picked;
   const url = plan.url;
   const co = j ? cleanCompany(j.company_name) : null;
   const where = j?.city_primary ? ` in ${j.city_primary}` : '';
