@@ -17,3 +17,8 @@ dist/
 
 # Generated from the .ttf files by scripts/inline-fonts.mjs on every build.
 src/fonts/fonts.generated.js
+
+# Which subjects have already been made into reels. Local to the machine
+# that builds them.
+.reel-history.json
+.reel-log.txt

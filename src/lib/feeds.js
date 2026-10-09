@@ -84,6 +84,89 @@ export const TOPICS = {
     ].join('|'), 'i'),
   },
 
+  /*
+   * Four more topics, so the news pillars have enough to draw on to never
+   * repeat inside a fortnight. Each is a separate query rather than one wide
+   * one, because a broad search returns the same twenty business stories and
+   * none of the specific hiring news underneath them.
+   */
+  freshers: {
+    query: [
+      '("fresher hiring" OR "entry level" OR "campus placement" OR "graduate hiring") India when:21d',
+      '(freshers OR "first job" OR "campus recruitment") hiring India when:21d',
+    ],
+    relevant: new RegExp([
+      'fresher', 'entry[- ]level', 'campus (hiring|placement|recruit|drive)',
+      'graduate hiring', 'first job', 'trainee', 'intern', 'off[- ]campus',
+      'placement season', 'hiring [\d,]+',
+    ].join('|'), 'i'),
+    noise: new RegExp([
+      'scam', 'fraud', 'fake', 'arrest', 'racket', 'court', 'probe',
+      'share price', 'stock', 'brokerage', 'horoscope', 'cricket',
+      'admit card', 'answer key', 'result declared',
+    ].join('|'), 'i'),
+  },
+
+  gcc: {
+    query: [
+      '("global capability centre" OR "global capability center" OR GCC) India hiring when:21d',
+      '(GCC OR "captive centre") India jobs expansion when:21d',
+    ],
+    relevant: new RegExp([
+      'GCC', 'global capability', 'captive cent',
+      'hir(e|es|ing)', 'headcount', 'expand', 'new cent', 'set up', 'open',
+      'jobs', 'roles', 'workforce', 'talent',
+    ].join('|'), 'i'),
+    noise: new RegExp([
+      'scam', 'fraud', 'arrest', 'court', 'share price', 'stock',
+      'gulf cooperation', 'cricket',     // GCC also abbreviates the Gulf bloc
+    ].join('|'), 'i'),
+  },
+
+  ai: {
+    query: [
+      '("AI jobs" OR "AI hiring" OR "AI skills") India when:21d',
+      '(artificial intelligence OR "machine learning") hiring India freshers when:21d',
+    ],
+    relevant: new RegExp([
+      'AI (job|hiring|skill|role|talent)', 'artificial intelligence',
+      'machine learning', 'data scien', 'reskill', 'upskill',
+      'hir(e|es|ing)', 'demand for', 'salaries', 'fresher',
+    ].join('|'), 'i'),
+    noise: new RegExp([
+      'scam', 'fraud', 'arrest', 'court', 'share price', 'stock', 'funding round',
+      'chatgpt (said|wrote|answers)', 'horoscope', 'cricket', 'deepfake',
+    ].join('|'), 'i'),
+  },
+
+  pay: {
+    /*
+     * "Compensation" is deliberately absent from both the query and the
+     * matcher. In Indian headlines it almost always means legal damages: a
+     * first run of this returned a Madras High Court award, a Milan consulate
+     * settlement and a pay revision for IPS officers, none of which is about
+     * what anyone earns in a job you could apply to.
+     */
+    query: [
+      '(appraisal OR "salary hike" OR increment) India IT employees when:30d',
+      '("salary trends" OR "average salary" OR "pay package") India jobs hiring when:30d',
+    ],
+    relevant: new RegExp([
+      'salary (hike|hikes|increment|trend|trends|data|package|trajector)',
+      'appraisal', 'pay (hike|hikes|rise|package|parity)', 'increment cycle',
+      'variable pay', 'joining bonus', 'average (salary|pay|package)',
+      'ctc\b', 'lpa\b', 'in[- ]hand',
+    ].join('|'), 'i'),
+    noise: new RegExp([
+      // Damages, settlements and public-service pay revisions.
+      'compensation', 'court', 'tribunal', 'verdict', 'petition', 'bench of',
+      'high court', 'supreme court', 'commission recommends',
+      'IPS', 'IAS', 'MLA', 'MP salary', 'pension', 'dearness allowance',
+      'scam', 'fraud', 'arrest', 'share price', 'stock', 'brokerage',
+      'cricket', 'actor', 'net worth', 'richest',
+    ].join('|'), 'i'),
+  },
+
   funding: {
     query:
       '(Indian startup OR India startup) (raises OR raised OR funding OR "Series A" OR ' +

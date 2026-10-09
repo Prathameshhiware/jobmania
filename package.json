@@ -20,7 +20,8 @@
     "boards:backfill": "node src/backfill-boards.js",
     "cards": "node scripts/inline-fonts.mjs && node src/render-cards.js",
     "prebuild": "node scripts/inline-fonts.mjs",
-    "reel": "node scripts/inline-fonts.mjs && node src/make-reel.js"
+    "reel": "node scripts/inline-fonts.mjs && node src/make-reel.js",
+    "reel:deliver": "node scripts/inline-fonts.mjs && node src/make-reel.js deliver"
   },
   "overrides": {
     "htmlparser2": "^9.1.0",

@@ -4,6 +4,7 @@
 //   npm run reel walkins         a specific pillar
 //   npm run reel walkins 2026-10-20
 //   npm run reel week            the next seven days, one reel per day
+//   npm run reel deliver         today's reel, into the OneDrive folder
 //
 // Deliberately a local script and a devDependency, not part of the deployed
 // site. Vercel Hobby cannot do this: a 60 second function ceiling and no
@@ -23,14 +24,15 @@
 // transitions are cross-faded by blending two buffers in JS. Rasterising all
 // 900 frames would take about fifteen minutes; this takes a hundred seconds.
 
-import { writeFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readdirSync, readFileSync, copyFileSync } from 'node:fs';
 import HME from 'h264-mp4-encoder';
 import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
+import { pickSubject, record, allUsed, daysSince, load as loadHistory } from './lib/reel-history.js';
 import { slideSvg, STORY } from './lib/render.js';
 import { reelFrames, subjectCount, NO_REEL } from './lib/reel.js';
 import { zoomPan, outQuint, progress } from './lib/reel-motion.js';
-import { istDate, istDatePlus } from './lib/ist.js';
+import { istDate, istDatePlus, istLong } from './lib/ist.js';
 
 const FPS = 30;
 const OUT_DIR = './.preview-cards/';
@@ -324,7 +326,88 @@ const arg1 = process.argv[2] || null;
 const arg2 = process.argv[3] || null;
 const faqs = loadFaqs();
 
-if (arg1 === 'week') {
+if (arg1 === 'deliver') {
+  /*
+   * Today's reel, into a OneDrive folder.
+   *
+   * No email, no bot, no credential. The project already lives in OneDrive
+   * and the sync client is running, so a file written here is on the phone a
+   * minute later — which is the whole requirement, and the only delivery
+   * route that needs nothing set up and nothing kept alive.
+   *
+   * Alongside the video goes the caption as a .txt, because the caption is
+   * useless on a laptop when the posting happens on a phone, and a running
+   * content table so what went out and what is queued is in one place.
+   */
+  const OUT = `${process.env.USERPROFILE ?? 'C:/Users/LENOVO'}/OneDrive/JoBmania Reels`;
+  mkdirSync(OUT, { recursive: true });
+
+  const now = new Date();
+  const history = loadHistory();
+
+  // Plan first, so the subject can be chosen against what has already gone
+  // out rather than by date arithmetic that cannot see the history.
+  const probe = await planRotation({ now, faqs });
+  if (!probe) { console.error('No pillar had material today. Nothing delivered.'); process.exit(1); }
+
+  const pick = pickSubject(probe, history);
+  const recycled = allUsed(probe, history);
+  const since = daysSince(probe, pick, history);
+
+  const r = await buildReel({ now, faqs, pick, quiet: false });
+  if (!r) { console.error('Build failed. Nothing delivered.'); process.exit(1); }
+
+  const stamp = `${r.plan.today}-${r.plan.kind}`;
+  const videoPath = `${OUT}/${stamp}.mp4`;
+  copyFileSync(r.file, videoPath);
+  writeFileSync(`${OUT}/${stamp}.txt`,
+    `${r.plan.headline}\n\n${caption(r.plan)}\n\n` +
+    `--\nAdd a trending sound in the Instagram app before posting.\n` +
+    `Music cannot be attached by any API, including Meta's own.\n`);
+
+  record(r.plan, pick, { file: `${stamp}.mp4` });
+
+  // The content table, rewritten each run from the history itself so it can
+  // never drift from what actually happened.
+  const rows = loadHistory().slice(-30).reverse()
+    .map((e) => `| ${e.date} | ${e.pillar} | ${String(e.headline).replace(/\|/g, '/').slice(0, 58)} | ${e.file ?? ''} |`);
+  writeFileSync(`${OUT}/CONTENT.md`, [
+    '# JoBmania reels',
+    '',
+    `Updated ${istLong(new Date())}. Newest first.`,
+    '',
+    '| Date | Pillar | Subject | File |',
+    '| --- | --- | --- | --- |',
+    ...rows,
+    '',
+    '## How this is chosen',
+    '',
+    'One pillar per weekday: Monday openings, Tuesday government recruitment,',
+    'Wednesday a job term, Thursday closing soon, Friday hiring news, Saturday',
+    'is skipped for reels, Sunday the weekly roundup. Walk-ins are never made',
+    'into reels — a drive is over in a day and a reel is served for weeks.',
+    '',
+    'Within a pillar the subject used longest ago is chosen. When every subject',
+    'has been covered, the oldest comes round again. The education slot has 36',
+    'glossary terms and 58 article questions, so it does not repeat for well',
+    'over a year.',
+    '',
+    'Every figure comes from the live database or from a named publisher with a',
+    'date. Nothing here is written by a generator.',
+    '',
+  ].join('\n'));
+
+  console.log(`\nDelivered to OneDrive`);
+  console.log(`  ${videoPath}`);
+  console.log(`  ${stamp}.txt          the caption`);
+  console.log(`  CONTENT.md            what has gone out`);
+  console.log(`\n  pillar   ${r.plan.kind}${r.plan.scheduled !== r.plan.kind ? `  (fell back from ${r.plan.scheduled})` : ''}`);
+  console.log(`  subject  ${pick + 1} of ${r.plan.subjects?.length ?? 1}` +
+    (since === null ? '  — not covered before' : `  — last covered ${since} days ago`));
+  if (recycled) console.log('  note     every subject in this pillar has been used; recycling the oldest');
+  if (r.plan.needsHumanApproval) console.log('  note     flagged for review before posting');
+  console.log('\nIt will be on your phone in the OneDrive app within a minute.');
+} else if (arg1 === 'week') {
   // One reel per day, each following the rotation rather than everything
   // bundled into a single video. Seven days is the whole cycle, so this is a
   // week of posts in one run.
