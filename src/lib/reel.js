@@ -24,10 +24,34 @@ import { cleanCompany } from './rotation.js';
 
 const SECONDS = 30;
 
-/** Weights, normalised to SECONDS at the end, not literal durations. */
-const HOOK = 3.4;
-const BEAT = 2.1;
-const CLOSE = 2.8;
+/*
+ * Weights, normalised to SECONDS at the end, not literal durations.
+ *
+ * The first version held six cards across thirty seconds, which forces five
+ * seconds a card however the weights are set — and five seconds on a static
+ * frame is a slideshow. The fix is not faster transitions, it is more beats:
+ * a dozen cards at two and a half seconds reads as fast, where six at five
+ * reads as broken.
+ *
+ * So each builder now breaks its subject into many small statements instead
+ * of a few dense ones. A label and its value get their own frames, because
+ * two short cards land harder than one card with two lines on it.
+ */
+const HOOK = 2.6;
+const BEAT = 1.5;
+const PUNCH = 1.2;      // a short one: a single word or number
+const CLOSE = 2.2;
+
+/*
+ * Walk-ins are deliberately not made into reels.
+ *
+ * They are the most useful thing this site has and they still lead the
+ * carousel, the site and the Saturday post. But a drive is over in a day, and
+ * a reel keeps being served for weeks — so the format outlives the thing it
+ * is advertising, and someone travels across a city to a drive that finished
+ * a fortnight ago. Evergreen subjects only here.
+ */
+export const NO_REEL = new Set(['walkins']);
 
 const has = (v) => v !== null && v !== undefined && String(v).trim() !== '';
 const clip = (s, n) => (String(s ?? '').length > n ? String(s).slice(0, n - 1).trimEnd() + '…' : String(s ?? ''));
@@ -53,37 +77,24 @@ const beat = (title, sub, weight = BEAT) =>
 
 // ----------------------------------------------------------- the subjects
 
-/** One walk-in drive: the most time-critical thing this site knows. */
-function walkinReel(j, plan) {
-  const co = cleanCompany(j.company_name);
-  return [
-    { weight: HOOK, slide: { type: 'hero', kicker: `Walk-in · ${istShort(j.walkin_start)}`,
-        title: co, sub: clip(j.title, 70) } },
-    beat(istLong(j.walkin_start), has(j.walkin_time) ? j.walkin_time : 'Check the timing on the site', BEAT + 0.4),
-    beat(j.city_primary, has(j.walkin_venue) ? clip(j.walkin_venue, 110) : null, BEAT + 0.6),
-    beat(experience(j), has(j.qualification) ? clip(j.qualification, 90) : null),
-    { weight: BEAT + 0.3, slide: { type: 'hero', kicker: '', title: 'No registration fee',
-        sub: 'No genuine employer in India charges a candidate to attend. If anyone asks, walk away.' } },
-    { weight: CLOSE, slide: { type: 'cta', title: 'Confirm before you travel',
-        body: 'Drives get moved at short notice. The venue and timing on the site are the employer’s own words.',
-        link: `${plan.url}/c/walk-ins` } },
-  ];
-}
-
-/** One opening. */
+/** One opening, broken into short beats rather than a few dense cards. */
 function openingReel(j, plan) {
   const posted = has(j.posted_at) ? istShort(j.posted_at) : null;
+  const exp = experience(j);
   return [
-    { weight: HOOK, slide: { type: 'hero', kicker: posted ? `Posted ${posted}` : 'New opening',
-        title: cleanCompany(j.company_name), sub: clip(j.title, 70) } },
-    beat(j.city_primary ?? 'Across India', j.work_mode ? j.work_mode.replace(/^\w/, (c) => c.toUpperCase()) : null),
-    beat(experience(j), has(j.qualification) ? clip(j.qualification, 90) : null, BEAT + 0.4),
-    { weight: BEAT + 0.4, slide: { type: 'hero', kicker: '', title: 'Apply in 48 hours',
-        sub: 'Recruiters stop reading once they have a shortlist. Early beats perfect.' } },
-    { weight: BEAT, slide: { type: 'hero', kicker: '', title: 'Straight to the employer',
-        sub: 'The apply link goes to their own page, never through us. No fee, ever.' } },
-    { weight: CLOSE, slide: { type: 'cta', title: 'On the site now',
-        body: 'Every apply link is re-tested through the day, and a role comes down when it closes.',
+    { weight: HOOK, slide: { type: 'hero', kicker: posted ? `Posted ${posted}` : 'Now hiring',
+        title: cleanCompany(j.company_name), sub: '' } },
+    { weight: BEAT + 0.5, slide: { type: 'hero', kicker: 'The role', title: clip(j.title, 64), sub: '' } },
+    beat('Where', j.city_primary ?? 'Across India', PUNCH),
+    j.work_mode ? beat('Work mode', j.work_mode.replace(/^\w/, (c) => c.toUpperCase()), PUNCH) : null,
+    exp ? beat('Experience', exp, PUNCH) : null,
+    has(j.qualification) ? beat('Who can apply', clip(j.qualification, 80), BEAT) : null,
+    { weight: BEAT, slide: { type: 'hero', kicker: '', title: 'Apply in 48 hours', sub: '' } },
+    { weight: BEAT, slide: { type: 'hero', kicker: '',
+        title: 'Recruiters stop reading once they have a shortlist', sub: '' } },
+    { weight: BEAT, slide: { type: 'hero', kicker: '', title: 'The link goes to them, not us', sub: '' } },
+    { weight: PUNCH + 0.3, slide: { type: 'hero', kicker: '', title: 'No fee. Ever.', sub: '' } },
+    { weight: CLOSE, slide: { type: 'cta', title: 'On the site now', body: '',
         link: `${plan.url}/c/just-posted` } },
   ];
 }
@@ -91,72 +102,89 @@ function openingReel(j, plan) {
 /** One role about to close. */
 function closingReel(j, plan) {
   const when = has(j.valid_through) ? istShort(j.valid_through) : null;
+  const exp = experience(j);
   return [
     { weight: HOOK, slide: { type: 'hero', kicker: when ? `Closes ${when}` : 'Closing soon',
-        title: cleanCompany(j.company_name), sub: clip(j.title, 70) } },
-    beat(j.city_primary ?? 'Across India', j.work_mode ? j.work_mode.replace(/^\w/, (c) => c.toUpperCase()) : null),
-    beat(experience(j), has(j.qualification) ? clip(j.qualification, 90) : null, BEAT + 0.4),
-    { weight: BEAT + 0.6, slide: { type: 'hero', kicker: '', title: when ? `Last day ${when}` : 'Closing this week',
-        sub: 'A deadline is the last possible day, not the best one. Employers close early once they have enough.' } },
-    { weight: CLOSE, slide: { type: 'cta', title: 'Do it tonight',
-        body: 'The listing carries the employer’s own description and links straight to their form.',
-        link: `${plan.url}/jobs` } },
+        title: cleanCompany(j.company_name), sub: '' } },
+    { weight: BEAT + 0.5, slide: { type: 'hero', kicker: 'The role', title: clip(j.title, 64), sub: '' } },
+    beat('Where', j.city_primary ?? 'Across India', PUNCH),
+    exp ? beat('Experience', exp, PUNCH) : null,
+    has(j.qualification) ? beat('Who can apply', clip(j.qualification, 80), BEAT) : null,
+    when ? { weight: BEAT + 0.4, slide: { type: 'hero', kicker: '', title: `Last day ${when}`, sub: '' } } : null,
+    { weight: BEAT, slide: { type: 'hero', kicker: '',
+        title: 'A deadline is the last possible day, not the best one', sub: '' } },
+    { weight: BEAT, slide: { type: 'hero', kicker: '',
+        title: 'Employers close early once they have enough', sub: '' } },
+    { weight: PUNCH + 0.3, slide: { type: 'hero', kicker: '', title: 'Do it tonight', sub: '' } },
+    { weight: CLOSE, slide: { type: 'cta', title: 'Open now on JoBmania', body: '', link: `${plan.url}/jobs` } },
   ];
 }
 
 /** One government recruitment notification. */
-function sarkariReel(s, plan) {
+function sarkariReel(x, plan) {
+  const posts = x.vacancies ? Number(x.vacancies).toLocaleString('en-IN') : null;
   return [
     { weight: HOOK, slide: { type: 'hero', kicker: 'Government recruitment',
-        title: s.body, sub: s.vacancies ? `${Number(s.vacancies).toLocaleString('en-IN')} posts` : 'Applications open' } },
-    { weight: BEAT + 0.8, slide: { type: 'news', title: clip(s.title, 150), source: s.source, date: istShort(s.date) } },
-    { weight: BEAT + 0.4, slide: { type: 'hero', kicker: '', title: 'Apply on the official site',
-        sub: s.site } },
-    { weight: BEAT + 0.4, slide: { type: 'hero', kicker: '', title: 'Never pay a fee',
-        sub: 'No one can sell you a government job. Anyone who offers is running a scam.' } },
-    { weight: CLOSE, slide: { type: 'cta', title: 'We did not verify this one',
-        body: `Reported by ${s.source}. We do not list government vacancies — read the official notification before applying.`,
-        link: s.site } },
+        title: x.body, sub: '' } },
+    posts ? { weight: PUNCH + 0.4, slide: { type: 'hero', kicker: 'Vacancies', title: posts, sub: '' } }
+          : { weight: PUNCH + 0.4, slide: { type: 'hero', kicker: '', title: 'Applications open', sub: '' } },
+    { weight: BEAT + 0.6, slide: { type: 'news', title: clip(x.title, 140), source: x.source, date: istShort(x.date) } },
+    beat('Apply here', x.site, BEAT),
+    { weight: BEAT, slide: { type: 'hero', kicker: '', title: 'Only on the official site', sub: '' } },
+    { weight: PUNCH + 0.3, slide: { type: 'hero', kicker: '', title: 'Never pay a fee', sub: '' } },
+    { weight: BEAT, slide: { type: 'hero', kicker: '',
+        title: 'Nobody can sell you a government job', sub: '' } },
+    { weight: BEAT, slide: { type: 'hero', kicker: '',
+        title: 'We did not verify this one', sub: `Reported by ${x.source}. We do not list government vacancies.` } },
+    { weight: CLOSE, slide: { type: 'cta', title: 'Read the official notification', body: '', link: x.site } },
   ];
 }
 
-/** One news story. */
-function industryReel(s, plan) {
+/** One news story, with our own measured numbers as the counterweight. */
+function industryReel(x, plan) {
+  const st = plan.stats ?? {};
+  const n = (v) => Number(v ?? 0).toLocaleString('en-IN');
   return [
-    { weight: HOOK, slide: { type: 'hero', kicker: 'This week in hiring',
-        title: clip(s.title, 110), sub: '' } },
-    { weight: BEAT + 0.6, slide: { type: 'news', title: clip(s.title, 150), source: s.source, date: istShort(s.date) } },
-    { weight: BEAT + 0.6, slide: { type: 'hero', kicker: '', title: 'What it means for you',
-        sub: 'News tells you the direction. The site tells you which roles you can actually apply to today.' } },
-    { weight: CLOSE, slide: { type: 'cta', title: 'What is open right now',
-        body: 'Verified openings, re-tested through the day, every link going to the employer.',
-        link: `${plan.url}/jobs` } },
+    { weight: HOOK, slide: { type: 'hero', kicker: 'This week in hiring', title: clip(x.title, 100), sub: '' } },
+    { weight: BEAT + 0.6, slide: { type: 'news', title: clip(x.title, 140), source: x.source, date: istShort(x.date) } },
+    { weight: BEAT, slide: { type: 'hero', kicker: '', title: 'News tells you the direction', sub: '' } },
+    { weight: BEAT, slide: { type: 'hero', kicker: '', title: 'It does not tell you what you can apply to', sub: '' } },
+    st.live ? { weight: PUNCH + 0.4, slide: { type: 'hero', kicker: 'Live right now', title: n(st.live), sub: 'openings' } } : null,
+    st.freshers ? { weight: PUNCH + 0.4, slide: { type: 'hero', kicker: 'Of those', title: n(st.freshers), sub: 'open to freshers' } } : null,
+    st.companies ? { weight: PUNCH + 0.4, slide: { type: 'hero', kicker: 'From', title: n(st.companies), sub: 'employers' } } : null,
+    { weight: BEAT, slide: { type: 'hero', kicker: '', title: 'Every link re-tested through the day', sub: '' } },
+    { weight: BEAT, slide: { type: 'hero', kicker: '', title: 'Closed roles come down', sub: '' } },
+    { weight: CLOSE, slide: { type: 'cta', title: 'See what is open', body: '', link: `${plan.url}/jobs` } },
   ];
 }
 
 /** One term, or one question from an article. */
 function educationReel(plan) {
-  const qa = plan.slides.find((x) => x.type === 'qa');
-  const cta = plan.slides.find((x) => x.type === 'cta');
-  const hero = plan.slides.find((x) => x.type === 'hero');
+  const qa = plan.slides.find((v) => v.type === 'qa');
+  const cta = plan.slides.find((v) => v.type === 'cta');
+  const hero = plan.slides.find((v) => v.type === 'hero');
   if (!qa) return null;
 
-  const a = String(qa.answer);
   const out = [{ weight: HOOK, slide: { type: 'hero', kicker: 'Know the word', title: hero?.title ?? qa.question, sub: '' } }];
 
-  // A long definition is split on a sentence boundary rather than dumped on
-  // one card, so it is readable at two seconds a frame.
-  if (a.length > 150) {
-    const cut = a.lastIndexOf('. ', Math.floor(a.length * 0.58));
-    const at = cut > 50 ? cut + 1 : Math.floor(a.length / 2);
-    out.push({ weight: BEAT + 1.0, slide: { type: 'qa', question: '', answer: a.slice(0, at).trim() } });
-    out.push({ weight: BEAT + 1.0, slide: { type: 'qa', question: '', answer: a.slice(at).trim() } });
-  } else {
-    out.push({ weight: BEAT + 1.6, slide: { type: 'qa', question: '', answer: a } });
+  /*
+   * The definition is broken on sentence boundaries rather than shown whole.
+   * A paragraph held for six seconds is read by nobody; three statements at
+   * two seconds each are read by everyone.
+   */
+  const sentences = String(qa.answer).split(/(?<=\.)\s+/).filter(Boolean);
+  const chunks = [];
+  let buf = '';
+  for (const sentence of sentences) {
+    if ((buf + ' ' + sentence).trim().length > 110 && buf) { chunks.push(buf.trim()); buf = sentence; }
+    else buf = (buf + ' ' + sentence).trim();
   }
+  if (buf) chunks.push(buf.trim());
+  for (const c of chunks.slice(0, 4)) out.push({ weight: BEAT + 0.5, slide: { type: 'qa', question: '', answer: c } });
 
   if (cta?.body) {
-    out.push({ weight: BEAT + 0.6, slide: { type: 'hero', kicker: '', title: 'Why it matters', sub: cta.body } });
+    out.push({ weight: PUNCH + 0.3, slide: { type: 'hero', kicker: '', title: 'Why it matters', sub: '' } });
+    out.push({ weight: BEAT + 0.4, slide: { type: 'qa', question: '', answer: cta.body } });
   }
   out.push({ weight: CLOSE, slide: { type: 'cta', title: cta?.title ?? 'More on the site', body: '', link: cta?.link ?? plan.url } });
   return out;
@@ -177,7 +205,7 @@ function roundupReel(plan) {
 }
 
 const BUILDERS = {
-  walkins: walkinReel, openings: openingReel, closing: closingReel,
+  openings: openingReel, closing: closingReel,
   sarkari: sarkariReel, industry: industryReel,
 };
 

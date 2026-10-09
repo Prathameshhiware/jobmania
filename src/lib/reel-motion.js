@@ -41,6 +41,61 @@ export function pan(src, srcW, w, h, dx, out) {
  */
 export const ease = (t) => t * t * (3 - 2 * t);
 
+/**
+ * Hard deceleration. Fast at the start, almost stopped at the end.
+ *
+ * This is what makes an entrance feel snappy rather than floaty: the card
+ * arrives nearly instantly and then settles. A smoothstep entrance eases in as
+ * well as out, which reads as slow no matter how short you make it.
+ */
+export const outQuint = (t) => 1 - Math.pow(1 - t, 5);
+
+/**
+ * Crop with a zoom, sampling bilinearly. `scale` of 1 is the plain window;
+ * above 1 is zoomed in, about the centre of the window.
+ *
+ * Used only for the handful of frames at each cut, where the card punches
+ * down from slightly oversized to its resting position. Running this on all
+ * 900 frames would add about a minute and a half a reel for motion nobody
+ * would notice; running it on eight frames per card costs nothing and is the
+ * whole difference between a cut that lands and a dissolve that drifts.
+ */
+export function zoomPan(src, srcW, srcH, w, h, scale, dx, out) {
+  if (scale === 1) return pan(src, srcW, w, h, dx, out);
+
+  const ox = Math.max(0, Math.min(srcW - w, Math.round(dx)));
+  const cx = w / 2;
+  const cy = h / 2;
+  const inv = 1 / scale;
+
+  for (let y = 0; y < h; y++) {
+    // Source row for this output row, clamped inside the buffer.
+    const sy = Math.min(srcH - 1.001, Math.max(0, cy + (y - cy) * inv));
+    const y0 = sy | 0;
+    const fy = sy - y0;
+    const r0 = y0 * srcW;
+    const r1 = (y0 + 1 < srcH ? y0 + 1 : y0) * srcW;
+
+    let o = y * w * 4;
+    for (let x = 0; x < w; x++, o += 4) {
+      const sx = Math.min(srcW - 1.001, Math.max(0, ox + cx + (x - cx) * inv));
+      const x0 = sx | 0;
+      const fx = sx - x0;
+      const x1 = x0 + 1 < srcW ? x0 + 1 : x0;
+
+      const a = (r0 + x0) * 4, b = (r0 + x1) * 4;
+      const c = (r1 + x0) * 4, d = (r1 + x1) * 4;
+
+      for (let k = 0; k < 4; k++) {
+        const top = src[a + k] + (src[b + k] - src[a + k]) * fx;
+        const bot = src[c + k] + (src[d + k] - src[c + k]) * fx;
+        out[o + k] = (top + (bot - top) * fy) | 0;
+      }
+    }
+  }
+  return out;
+}
+
 /** Cross-fade two equally sized RGBA buffers into `out`. */
 export function blend(a, b, k, out) {
   const inv = 1 - k;

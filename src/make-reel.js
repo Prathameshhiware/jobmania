@@ -28,12 +28,11 @@ import HME from 'h264-mp4-encoder';
 import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
 import { slideSvg, STORY } from './lib/render.js';
-import { reelFrames, REEL_SECONDS, subjectCount } from './lib/reel.js';
-import { OVERSCAN, pan, ease, blend, progress } from './lib/reel-motion.js';
+import { reelFrames, REEL_SECONDS, subjectCount, NO_REEL } from './lib/reel.js';
+import { OVERSCAN, pan, zoomPan, ease, outQuint, progress } from './lib/reel-motion.js';
 import { istDate, istDatePlus } from './lib/ist.js';
 
 const FPS = 30;
-const FADE = 0.34;                       // seconds of cross-fade between cards
 const OUT_DIR = './.preview-cards/';
 const PROGRESS_RGB = [173, 179, 247];   // --accent dark value: legible on both tones
 const { width: W, height: H } = STORY;
@@ -82,9 +81,16 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
    * alternative is also empty we keep the repeat rather than post nothing,
    * because a duplicate subject beats a missing day.
    */
-  if (!force && avoid.includes(plan.kind)) {
+  /*
+   * Walk-ins never become reels. A drive is over in a day and a reel keeps
+   * being served for weeks, so the format outlives the thing it advertises.
+   * They still lead the carousel, the site and the Saturday post.
+   */
+  const barred = (k) => NO_REEL.has(k) || avoid.includes(k);
+
+  if (!force && barred(plan.kind)) {
     for (const alt of ['openings', 'closing', 'education', 'industry', 'sarkari', 'walkins']) {
-      if (avoid.includes(alt) || alt === plan.kind) continue;
+      if (barred(alt) || alt === plan.kind) continue;
       const other = await planRotation({ now, faqs, force: alt });
       if (other && other.kind === alt) { plan = other; break; }
     }
@@ -130,14 +136,26 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
   enc.quantizationParameter = 22;
   enc.initialize();
 
-  const fadeFrames = Math.round(FADE * FPS);
+  /*
+   * Hard cuts with a punch-in, not cross-fades.
+   *
+   * A dissolve between two text cards is the single most dated thing a video
+   * can do — it says slideshow before a word is read, and it wastes a third of
+   * a second of a two-second beat on mush. A hard cut plus a card that lands
+   * slightly oversized and settles in a quarter of a second reads as
+   * deliberate, and the deceleration is what makes it feel snappy rather than
+   * floaty.
+   *
+   * Only these few frames per card are resampled. Doing it to all 900 would
+   * add about ninety seconds a reel for motion nobody would notice.
+   */
+  const PUNCH_FRAMES = Math.round(0.22 * FPS);
+  const PUNCH_SCALE = 1.1;
   const totalFrames = cards.reduce((a, c) => a + Math.round(c.seconds * FPS), 0);
 
   // Reused across every frame. Allocating 8MB nine hundred times gives the
   // garbage collector more work than the encoder has.
   const frame = Buffer.allocUnsafe(W * H * 4);
-  const next = Buffer.allocUnsafe(W * H * 4);
-  const mixed = Buffer.allocUnsafe(W * H * 4);
 
   // Where the window sits on this card, 0 to 1 through its own duration.
   // Direction alternates so consecutive cards drift opposite ways, which
@@ -149,26 +167,23 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
 
   let written = 0;
   for (let i = 0; i < cards.length; i++) {
-    const last = i === cards.length - 1;
     const span = Math.max(2, Math.round(cards[i].seconds * FPS));
-    const hold = Math.max(1, span - (last ? 0 : fadeFrames));
 
-    for (let f = 0; f < hold; f++) {
-      pan(buffers[i], WIDE, W, H, offsetAt(i, f / (span - 1)), frame);
+    for (let f = 0; f < span; f++) {
+      const dx = offsetAt(i, f / (span - 1));
+
+      if (f < PUNCH_FRAMES) {
+        // Lands oversized and settles. outQuint so almost all of the movement
+        // happens in the first couple of frames.
+        const k = outQuint((f + 1) / PUNCH_FRAMES);
+        zoomPan(buffers[i], WIDE, H, W, H, 1 + (PUNCH_SCALE - 1) * (1 - k), dx, frame);
+      } else {
+        pan(buffers[i], WIDE, W, H, dx, frame);
+      }
+
       progress(frame, W, H, written / totalFrames, PROGRESS_RGB);
       enc.addFrameRgba(frame);
       written++;
-    }
-
-    if (!last) {
-      for (let f = 1; f <= fadeFrames; f++) {
-        pan(buffers[i], WIDE, W, H, offsetAt(i, (hold + f) / (span - 1)), frame);
-        pan(buffers[i + 1], WIDE, W, H, offsetAt(i + 1, 0), next);
-        blend(frame, next, f / (fadeFrames + 1), mixed);
-        progress(mixed, W, H, written / totalFrames, PROGRESS_RGB);
-        enc.addFrameRgba(mixed);
-        written++;
-      }
     }
     say(`\r    encoding ${written} frames   `);
   }
