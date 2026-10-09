@@ -39,10 +39,20 @@ select cron.schedule(
 -- Check it registered:
 --   select jobname, schedule, active from cron.job order by jobname;
 --
--- See what it has been doing. A failure here means the request did not
--- complete; the verdict itself is in the response body and in the Vercel
--- function log, because a health check that returns 500 when the site is
--- broken cannot be told apart from one that is broken itself.
+-- Read the verdict. This is the one that matters: the endpoint always
+-- answers 200, because a health check returning 500 when the site is broken
+-- cannot be told apart from one that is broken itself. So the status_code
+-- tells you the call arrived, and the body tells you what it found.
+--
+--   select created, status_code, content::json->>'verdict' as verdict
+--   from net._http_response order by created desc limit 3;
+--
+-- Note status_code, not status. The column on net._http_response is
+-- status_code; cron.job_run_details is the one with a status column, and
+-- mixing them up gives "column status does not exist".
+--
+-- Whether the job itself fired and completed, which is a different question
+-- from what it found:
 --
 --   select start_time, status, return_message
 --   from cron.job_run_details
