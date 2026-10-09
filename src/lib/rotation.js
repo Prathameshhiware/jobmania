@@ -231,21 +231,39 @@ function pillarClosing({ live, now }) {
 function pillarWalkins({ live, now }) {
   const today = istDate(now);
   const weekOut = istDatePlus(7, now);
-  const drives = live
+  const all = live
     .filter((j) => j.walkin_start && j.walkin_start >= today && j.walkin_start <= weekOut && j.walkin_venue)
     .sort((a, b) => String(a.walkin_start).localeCompare(String(b.walkin_start)));
-  if (!drives.length) return null;
+  if (!all.length) return null;
 
-  const byCity = tally(drives, 'city_primary');
+  /*
+   * One row per employer in the listed drives.
+   *
+   * Employers post the same drive under names we cannot treat as equal in the
+   * database — a reel built from this showed "Infoedge" and "Info Edge" as two
+   * of its five companies. The count above the list still counts every drive,
+   * because that number is true; it is only the named examples that are
+   * collapsed, so the same logo does not appear twice in six seconds.
+   */
+  const key = (name) => cleanCompany(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const seen = new Set();
+  const drives = all.filter((j) => {
+    const k = key(j.company_name);
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  const byCity = tally(all, 'city_primary');
   const topCity = byCity[0]?.[0] ?? null;
 
   return {
     kind: 'walkins',
     city: topCity,
-    headline: `${n(drives.length)} walk-ins this week`,
+    headline: `${n(all.length)} walk-ins this week`,
     slides: [
       { type: 'hero', kicker: 'Next seven days',
-        title: `${n(drives.length)} walk-in drive${drives.length === 1 ? '' : 's'} this week`,
+        title: `${n(all.length)} walk-in drive${all.length === 1 ? '' : 's'} this week`,
         sub: byCity.slice(0, 4).map(([c, k]) => `${c} ${k}`).join('  ·  ') },
       { type: 'list', title: 'Where and when',
         items: drives.slice(0, 5).map((j) => ({
@@ -257,7 +275,7 @@ function pillarWalkins({ live, now }) {
         link: `${SITE}/c/walk-ins` },
     ],
     caption: [
-      `${n(drives.length)} walk-in drive${drives.length === 1 ? '' : 's'} in the next seven days.`,
+      `${n(all.length)} walk-in drive${all.length === 1 ? '' : 's'} in the next seven days.`,
       '',
       ...drives.slice(0, 6).map((j) =>
         [`${istShort(j.walkin_start)} — ${cleanCompany(j.company_name)}`,

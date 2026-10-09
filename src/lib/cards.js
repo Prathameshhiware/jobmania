@@ -16,7 +16,7 @@
 // server-side, so if the palette changes in tokens.css it has to change here
 // too — which is why they are named identically.
 
-const C = {
+const LIGHT = {
   field1: '#CFC9EC', field2: '#BFC7EC', field3: '#EAD2DA',
   baseA: '#C3BEE4', baseB: '#EEDAD4',
   ink: '#221F33', ink2: '#443F5E', ink3: '#5A5575',
@@ -27,6 +27,41 @@ const C = {
   glassEdge: 'rgba(255,255,255,0.70)',
   ok: '#0E7A4A',
 };
+
+/*
+ * The dark tone, for reels.
+ *
+ * The pastel palette is right for the site and wrong for a feed: pale on pale
+ * is exactly what a thumb slides past. Reels alternate a dark card against the
+ * light ones, which stops the scroll and makes the pastel frames land harder
+ * by contrast. Same hues, inverted, so it is still unmistakably the brand.
+ */
+const D = {
+  field1: '#2E3560', field2: '#3A3158', field3: '#382C52',
+  baseA: '#221D33', baseB: '#2E2330',
+  ink: '#F6F3FF', ink2: '#CFC8E4', ink3: '#A49BC2',
+  accent: '#ADB3F7',
+  anchor: '#F2EFFA', onAnchor: '#1A1726',
+  hairline: 'rgba(255,255,255,0.16)',
+  glass: 'rgba(255,255,255,0.10)',
+  glassEdge: 'rgba(255,255,255,0.20)',
+  ok: '#34D399',
+};
+
+/*
+ * The palette in force while a card is being built.
+ *
+ * Swapped by card() and restored before it returns. That is safe only because
+ * everything between is synchronous — building the element tree never awaits,
+ * so no second card can interleave. If a builder ever becomes async this has
+ * to become a parameter threaded through every slide function instead.
+ */
+let C = LIGHT;
+
+/* Type scale. Reels get everything bigger: a card is on screen for two
+ * seconds on a phone held at arm's length, where carousel sizing is unreadable. */
+let SCALE = 1;
+const z = (n) => Math.round(n * SCALE);
 
 const DISPLAY = 'Sora';
 const BODY = 'Grotesk';
@@ -59,14 +94,20 @@ const backdrop = (w, hgt, tint) => ([
       background: `linear-gradient(145deg, ${tint[0]} 0%, ${tint[1]} 55%, ${tint[2]} 100%)` }),
   h({ position: 'absolute', top: -hgt * 0.22, left: -w * 0.18,
       width: w * 0.85, height: w * 0.85, borderRadius: w,
-      background: 'rgba(255,255,255,0.38)' }),
+      background: tint[3] ?? 'rgba(255,255,255,0.38)' }),
   h({ position: 'absolute', bottom: -hgt * 0.16, right: -w * 0.24,
       width: w * 0.78, height: w * 0.78, borderRadius: w,
-      background: 'rgba(255,255,255,0.22)' }),
+      background: tint[4] ?? 'rgba(255,255,255,0.22)' }),
 ]);
 
-/** Each pillar gets its own wash, so a glance at the grid shows the rotation. */
-const TINTS = {
+/*
+ * Each pillar gets its own wash, so a glance at the grid shows the rotation.
+ *
+ * A function, not a constant. Built at module load it would capture whichever
+ * palette was active then — which is how dark reel cards ended up with a
+ * pastel gradient painted over a dark base.
+ */
+const tints = () => ({
   openings:  [C.field2, C.field1, C.baseB],
   closing:   [C.field3, C.baseB, C.field1],
   walkins:   [C.field1, C.baseA, C.field2],
@@ -75,7 +116,7 @@ const TINTS = {
   industry:  [C.field1, C.field2, C.baseA],
   roundup:   [C.baseA, C.field1, C.field3],
   festival:  [C.field3, C.baseB, C.field1],
-};
+});
 
 /*
  * The wordmark, set in type rather than placed as an image.
@@ -102,18 +143,18 @@ const footer = (w, { index, total, url }) =>
       width: w - 144, alignItems: 'center', justifyContent: 'space-between' }, [
     h({ alignItems: 'baseline' }, [
       wordmark(28),
-      t({ fontFamily: BODY, fontWeight: 400, fontSize: 22, color: C.ink3, marginLeft: 14 },
+      t({ fontFamily: BODY, fontWeight: 400, fontSize: z(22), color: C.ink3, marginLeft: z(14) },
         url ?? 'jobmania.dpdns.org'),
     ]),
     total > 1
-      ? t({ fontFamily: BODY, fontWeight: 700, fontSize: 22, color: C.ink3 }, `${index + 1} / ${total}`)
+      ? t({ fontFamily: BODY, fontWeight: 700, fontSize: z(22), color: C.ink3 }, `${index + 1} / ${total}`)
       : h({}),
   ]);
 
 const kicker = (text) =>
-  h({ alignSelf: 'flex-start', paddingTop: 10, paddingBottom: 10, paddingLeft: 22, paddingRight: 22,
-      borderRadius: 999, background: C.glass, border: `2px solid ${C.glassEdge}`, marginBottom: 32 },
-    [t({ fontFamily: BODY, fontWeight: 700, fontSize: 24, color: C.accent,
+  h({ alignSelf: 'flex-start', paddingTop: z(10), paddingBottom: z(10), paddingLeft: z(22), paddingRight: z(22),
+      borderRadius: 999, background: C.glass, border: `2px solid ${C.glassEdge}`, marginBottom: z(32) },
+    [t({ fontFamily: BODY, fontWeight: 700, fontSize: z(24), color: C.accent,
          textTransform: 'uppercase', letterSpacing: 2 }, text)]);
 
 /*
@@ -128,7 +169,8 @@ const kicker = (text) =>
  * Bold. It aims for two or three lines. The first version was tuned by eye and
  * pushed "18 openings close within 4 days" off the right-hand edge.
  */
-const fitTitle = (text, max = 88, min = 38) => {
+const fitTitle = (text, max = 88, min = 38) => z(fitRaw(text, max, min));
+const fitRaw = (text, max, min) => {
   const n = String(text).length;
   const scale = max / 88;
   if (n <= 20) return max;
@@ -146,41 +188,41 @@ const slideHero = (s, w) => [
   t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.title),
       color: C.ink, lineHeight: 1.08, letterSpacing: -1.5 }, s.title),
   s.sub
-    ? t({ fontFamily: BODY, fontWeight: 400, fontSize: 38, color: C.ink2,
-          marginTop: 28, lineHeight: 1.35 }, s.sub)
+    ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(38), color: C.ink2,
+          marginTop: z(28), lineHeight: 1.35 }, s.sub)
     : h({}),
 ];
 
 const slideList = (s, w) => [
-  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: 52, color: C.ink,
-      marginBottom: 36, letterSpacing: -0.8 }, s.title),
+  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: z(52), color: C.ink,
+      marginBottom: z(36), letterSpacing: -0.8 }, s.title),
   h({ flexDirection: 'column' },
     (s.items ?? []).slice(0, 5).map((it, i) =>
-      h({ flexDirection: 'column', paddingTop: 22, paddingBottom: 22,
+      h({ flexDirection: 'column', paddingTop: z(22), paddingBottom: z(22),
           borderTop: i === 0 ? 'none' : `2px solid ${C.hairline}` }, [
-        t({ fontFamily: BODY, fontWeight: 700, fontSize: 38, color: C.ink }, it.primary),
+        t({ fontFamily: BODY, fontWeight: 700, fontSize: z(38), color: C.ink }, it.primary),
         it.secondary
-          ? t({ fontFamily: BODY, fontWeight: 400, fontSize: 28, color: C.ink3, marginTop: 6 }, it.secondary)
+          ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(28), color: C.ink3, marginTop: z(6) }, it.secondary)
           : h({}),
       ]))),
 ];
 
 const slideStat = (s, w) => [
-  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: 52, color: C.ink,
-      marginBottom: 44, letterSpacing: -0.8 }, s.title),
+  t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: z(52), color: C.ink,
+      marginBottom: z(44), letterSpacing: -0.8 }, s.title),
   h({ flexDirection: 'column' },
     (s.rows ?? []).slice(0, 4).map((r) =>
-      h({ alignItems: 'baseline', marginBottom: 30 }, [
-        t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: 76, color: C.accent,
-            letterSpacing: -2, marginRight: 20 }, r[0]),
-        t({ fontFamily: BODY, fontWeight: 400, fontSize: 32, color: C.ink2 }, r[1]),
+      h({ alignItems: 'baseline', marginBottom: z(30) }, [
+        t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: z(76), color: C.accent,
+            letterSpacing: -2, marginRight: z(20) }, r[0]),
+        t({ fontFamily: BODY, fontWeight: 400, fontSize: z(32), color: C.ink2 }, r[1]),
       ]))),
-  s.note ? t({ fontFamily: BODY, fontWeight: 400, fontSize: 24, color: C.ink3, marginTop: 10 }, s.note) : h({}),
+  s.note ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(24), color: C.ink3, marginTop: z(10) }, s.note) : h({}),
 ];
 
 const slideQA = (s, w) => [
   t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.question, 64, 40),
-      color: C.ink, lineHeight: 1.14, marginBottom: 34, letterSpacing: -0.8 }, s.question),
+      color: C.ink, lineHeight: 1.14, marginBottom: z(34), letterSpacing: -0.8 }, s.question),
   t({ fontFamily: BODY, fontWeight: 400, fontSize: String(s.answer).length > 240 ? 30 : 36,
       color: C.ink2, lineHeight: 1.45 }, s.answer),
 ];
@@ -188,28 +230,28 @@ const slideQA = (s, w) => [
 const slideNews = (s, w) => [
   t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.title, 60, 38),
       color: C.ink, lineHeight: 1.18, letterSpacing: -0.8 }, s.title),
-  h({ alignItems: 'center', marginTop: 36 }, [
-    h({ width: 8, height: 8, borderRadius: 8, background: C.accent, marginRight: 14 }),
-    t({ fontFamily: BODY, fontWeight: 700, fontSize: 28, color: C.ink2 }, s.source ?? ''),
-    s.date ? t({ fontFamily: BODY, fontWeight: 400, fontSize: 28, color: C.ink3, marginLeft: 12 }, `· ${s.date}`) : h({}),
+  h({ alignItems: 'center', marginTop: z(36) }, [
+    h({ width: 8, height: 8, borderRadius: 8, background: C.accent, marginRight: z(14) }),
+    t({ fontFamily: BODY, fontWeight: 700, fontSize: z(28), color: C.ink2 }, s.source ?? ''),
+    s.date ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(28), color: C.ink3, marginLeft: z(12) }, `· ${s.date}`) : h({}),
   ]),
 ];
 
 const slideCTA = (s, w) => [
   t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.title, 64, 40),
-      color: C.ink, lineHeight: 1.14, marginBottom: 28, letterSpacing: -0.8 }, s.title),
-  s.body ? t({ fontFamily: BODY, fontWeight: 400, fontSize: 34, color: C.ink2, lineHeight: 1.4 }, s.body) : h({}),
+      color: C.ink, lineHeight: 1.14, marginBottom: z(28), letterSpacing: -0.8 }, s.title),
+  s.body ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(34), color: C.ink2, lineHeight: 1.4 }, s.body) : h({}),
   s.link
-    ? h({ alignSelf: 'flex-start', marginTop: 42, paddingTop: 20, paddingBottom: 20,
-          paddingLeft: 34, paddingRight: 34, borderRadius: 18, background: C.anchor },
-        [t({ fontFamily: BODY, fontWeight: 700, fontSize: 30, color: C.onAnchor }, s.link)])
+    ? h({ alignSelf: 'flex-start', marginTop: z(42), paddingTop: z(20), paddingBottom: z(20),
+          paddingLeft: z(34), paddingRight: z(34), borderRadius: 18, background: C.anchor },
+        [t({ fontFamily: BODY, fontWeight: 700, fontSize: z(30), color: C.onAnchor }, s.link)])
     : h({}),
 ];
 
 const slideFestival = (s, w) => [
   t({ fontFamily: DISPLAY, fontWeight: 700, fontSize: fitTitle(s.greeting, 110, 56),
       color: C.ink, lineHeight: 1.04, letterSpacing: -2 }, s.greeting),
-  s.line ? t({ fontFamily: BODY, fontWeight: 400, fontSize: 38, color: C.ink2, marginTop: 34 }, s.line) : h({}),
+  s.line ? t({ fontFamily: BODY, fontWeight: 400, fontSize: z(38), color: C.ink2, marginTop: z(34) }, s.line) : h({}),
 ];
 
 const SLIDES = {
@@ -224,16 +266,23 @@ const SLIDES = {
  * counter. An unknown slide type throws rather than rendering an empty card,
  * because a blank slide in a published carousel is worse than a failed job.
  */
-export function card(slide, { kind = 'openings', index = 0, total = 1, size = SQUARE, url } = {}) {
+export function card(slide, { kind = 'openings', index = 0, total = 1, size = SQUARE, url, tone = 'light', reel = false } = {}) {
   const build = SLIDES[slide.type];
   if (!build) throw new Error(`unknown slide type: ${slide.type}`);
   const { width: w, height: hgt } = size;
+
+  C = tone === 'dark' ? D : LIGHT;
+  SCALE = reel ? 1.34 : 1;
 
   return h({
     width: w, height: hgt, position: 'relative', flexDirection: 'column',
     background: C.baseA, fontFamily: BODY,
   }, [
-    ...backdrop(w, hgt, TINTS[kind] ?? TINTS.openings),
+    ...backdrop(w, hgt, [
+      ...(tints()[kind] ?? tints().openings),
+      tone === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.38)',
+      tone === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.22)',
+    ]),
     /*
      * A definite width, not padding on a full-width box. Satori will not wrap
      * a text node whose container has no resolved width, so with padding alone
@@ -241,7 +290,11 @@ export function card(slide, { kind = 'openings', index = 0, total = 1, size = SQ
      */
     h({
       position: 'absolute', top: 0, left: 72, width: w - 144, height: hgt,
-      flexDirection: 'column', justifyContent: 'center', paddingBottom: 120,
+      flexDirection: 'column', justifyContent: 'center',
+      // Reels sit the content well above centre. A phone is held low, the
+      // bottom third is under a thumb and Instagram's own caption overlay,
+      // and text dead centre of a 1920px frame reads as unanchored.
+      paddingBottom: reel ? Math.round(hgt * 0.26) : z(120),
     }, build(slide, w - 144)),
     footer(w, { index, total, url }),
   ]);

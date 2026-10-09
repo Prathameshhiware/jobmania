@@ -29,11 +29,13 @@ import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
 import { slideSvg, STORY } from './lib/render.js';
 import { reelFrames, REEL_SECONDS } from './lib/reel.js';
+import { OVERSCAN, pan, ease, blend, progress } from './lib/reel-motion.js';
 import { istDate, istDatePlus } from './lib/ist.js';
 
 const FPS = 30;
 const FADE = 0.34;                       // seconds of cross-fade between cards
 const OUT_DIR = './.preview-cards/';
+const PROGRESS_RGB = [173, 179, 247];   // --accent dark value: legible on both tones
 const { width: W, height: H } = STORY;
 
 // ---------------------------------------------------------------- the FAQs
@@ -54,14 +56,6 @@ function loadFaqs() {
       out.push({ q: m[1].trim(), a: m[2].trim().replace(/\s+/g, ' '), title, path });
     }
   }
-  return out;
-}
-
-/** Cross-fade two RGBA buffers. `k` is 0 at `a`, 1 at `b`. */
-function blend(a, b, k) {
-  const out = Buffer.allocUnsafe(a.length);
-  const inv = 1 - k;
-  for (let i = 0; i < a.length; i++) out[i] = (a[i] * inv + b[i] * k) | 0;
   return out;
 }
 
@@ -100,15 +94,30 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [] })
   const say = (s) => { if (!quiet) process.stdout.write(s); };
 
   const t0 = Date.now();
+
+  /*
+   * Each card is rasterised once, OVERSCAN pixels wider than the frame, so a
+   * 1080px window can slide across it afterwards. That is where the motion
+   * comes from: every frame becomes a row copy rather than a fresh layout and
+   * rasterise, which is four milliseconds instead of a thousand.
+   *
+   * Tone alternates, starting dark. Pale cards on a pale feed are what a thumb
+   * slides past, and a hard cut between dark and light every couple of seconds
+   * is most of what makes this read as a video rather than a slideshow. The
+   * closing card is forced dark so the call to action lands hardest.
+   */
+  const WIDE = W + OVERSCAN;
   const buffers = [];
   for (let i = 0; i < cards.length; i++) {
+    const tone = (i % 2 === 0 || i === cards.length - 1) ? 'dark' : 'light';
     // total: 1 suppresses the "3 / 8" counter. That is a carousel affordance —
     // it tells a reader how far there is left to swipe — and in a video nobody
     // is swiping, so it is just a number that raises a question.
     const svg = await slideSvg(cards[i].slide, {
-      kind: plan.kind, index: i, total: 1, size: STORY, url: plan.url,
+      kind: plan.kind, index: i, total: 1, url: plan.url, tone, reel: true,
+      size: { width: WIDE, height: H },
     });
-    buffers.push(new Resvg(svg, { fitTo: { mode: 'width', value: W } }).render().pixels);
+    buffers.push(new Resvg(svg, { fitTo: { mode: 'width', value: WIDE } }).render().pixels);
     say(`\r    rasterising ${i + 1}/${cards.length}`);
   }
 
@@ -122,14 +131,42 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [] })
   enc.initialize();
 
   const fadeFrames = Math.round(FADE * FPS);
+  const totalFrames = cards.reduce((a, c) => a + Math.round(c.seconds * FPS), 0);
+
+  // Reused across every frame. Allocating 8MB nine hundred times gives the
+  // garbage collector more work than the encoder has.
+  const frame = Buffer.allocUnsafe(W * H * 4);
+  const next = Buffer.allocUnsafe(W * H * 4);
+  const mixed = Buffer.allocUnsafe(W * H * 4);
+
+  // Where the window sits on this card, 0 to 1 through its own duration.
+  // Direction alternates so consecutive cards drift opposite ways, which
+  // gives the cuts a rhythm instead of a conveyor belt.
+  const offsetAt = (i, t) => {
+    const travel = ease(Math.max(0, Math.min(1, t))) * OVERSCAN;
+    return i % 2 === 0 ? travel : OVERSCAN - travel;
+  };
+
   let written = 0;
   for (let i = 0; i < cards.length; i++) {
     const last = i === cards.length - 1;
-    const hold = Math.max(1, Math.round(cards[i].seconds * FPS) - (last ? 0 : fadeFrames));
-    for (let f = 0; f < hold; f++) { enc.addFrameRgba(buffers[i]); written++; }
+    const span = Math.max(2, Math.round(cards[i].seconds * FPS));
+    const hold = Math.max(1, span - (last ? 0 : fadeFrames));
+
+    for (let f = 0; f < hold; f++) {
+      pan(buffers[i], WIDE, W, H, offsetAt(i, f / (span - 1)), frame);
+      progress(frame, W, H, written / totalFrames, PROGRESS_RGB);
+      enc.addFrameRgba(frame);
+      written++;
+    }
+
     if (!last) {
       for (let f = 1; f <= fadeFrames; f++) {
-        enc.addFrameRgba(blend(buffers[i], buffers[i + 1], f / (fadeFrames + 1)));
+        pan(buffers[i], WIDE, W, H, offsetAt(i, (hold + f) / (span - 1)), frame);
+        pan(buffers[i + 1], WIDE, W, H, offsetAt(i + 1, 0), next);
+        blend(frame, next, f / (fadeFrames + 1), mixed);
+        progress(mixed, W, H, written / totalFrames, PROGRESS_RGB);
+        enc.addFrameRgba(mixed);
         written++;
       }
     }
