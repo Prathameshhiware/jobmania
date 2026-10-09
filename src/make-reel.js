@@ -29,7 +29,7 @@ import { Resvg } from '@resvg/resvg-js';
 import { planRotation, istWeekday, PILLAR_BY_WEEKDAY } from './lib/rotation.js';
 import { slideSvg, STORY } from './lib/render.js';
 import { reelFrames, REEL_SECONDS, subjectCount, NO_REEL } from './lib/reel.js';
-import { OVERSCAN, pan, zoomPan, ease, outQuint, progress } from './lib/reel-motion.js';
+import { zoomPan, outQuint, progress } from './lib/reel-motion.js';
 import { istDate, istDatePlus } from './lib/ist.js';
 
 const FPS = 30;
@@ -169,14 +169,12 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
    * cards at five states each is sixty renders, about a minute; a unique
    * render for all 900 frames would be a quarter of an hour.
    *
-   * Cards are still OVERSCAN pixels wider than the frame, so the held part of
-   * a beat can drift for free on top of the reveal.
    *
    * Tone alternates, starting dark. Pale cards on a pale feed are what a thumb
    * slides past, and the closing card is forced dark so the call to action
    * lands hardest.
    */
-  const WIDE = W + OVERSCAN;
+  const WIDE = W;          // no overscan: nothing pans any more
   const shots = [];                     // { buffers: [...states], card }
   let renders = 0;
   for (let i = 0; i < cards.length; i++) {
@@ -229,13 +227,15 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
   // garbage collector more work than the encoder has.
   const frame = Buffer.allocUnsafe(W * H * 4);
 
-  // Where the window sits on this card, 0 to 1 through its own duration.
-  // Direction alternates so consecutive cards drift opposite ways, which
-  // gives the cuts a rhythm instead of a conveyor belt.
-  const offsetAt = (i, t) => {
-    const travel = ease(Math.max(0, Math.min(1, t))) * OVERSCAN;
-    return i % 2 === 0 ? travel : OVERSCAN - travel;
-  };
+  /*
+   * There is no pan.
+   *
+   * A horizontal drift that reverses direction every card is a pendulum, and
+   * it is the single most dated thing here: it says screensaver, it fights
+   * the cuts, and it makes a two second beat feel like it is waiting for
+   * something. All the movement now comes from the words arriving and from
+   * each card landing slightly oversized and settling.
+   */
 
   // How long each reveal step is on screen before the next word arrives.
   // Four frames is about an eighth of a second: fast enough to read as
@@ -256,7 +256,6 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
     for (let f = 0; f < span; f++) {
       const step = Math.min(buffers.length - 1, first + Math.floor(f / STEP));
       const src = buffers[step];
-      const dx = offsetAt(i, f / (span - 1));
 
       // Each new word punches in. The scale is small and the easing is hard,
       // so it reads as the word landing rather than as the card zooming.
@@ -265,12 +264,12 @@ async function buildReel({ now, faqs, force = null, quiet = false, avoid = [], p
 
       if (f < PUNCH_FRAMES) {
         const k = outQuint((f + 1) / PUNCH_FRAMES);
-        zoomPan(src, WIDE, H, W, H, 1 + (PUNCH_SCALE - 1) * (1 - k), dx, frame);
+        zoomPan(src, WIDE, H, W, H, 1 + (PUNCH_SCALE - 1) * (1 - k), 0, frame);
       } else if (growing && intoStep < 2) {
         const k = outQuint((intoStep + 1) / 2);
-        zoomPan(src, WIDE, H, W, H, 1 + 0.028 * (1 - k), dx, frame);
+        zoomPan(src, WIDE, H, W, H, 1 + 0.03 * (1 - k), 0, frame);
       } else {
-        pan(src, WIDE, W, H, dx, frame);
+        src.copy(frame);
       }
 
       progress(frame, W, H, written / totalFrames, PROGRESS_RGB);
