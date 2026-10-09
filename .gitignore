@@ -25,3 +25,4 @@ src/fonts/fonts.generated.js
 
 # Batch-rendered reels. Large, regenerable, and perishable.
 reels-30day/
+batch.log
