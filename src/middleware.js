@@ -60,6 +60,13 @@ const PERMISSIONS = [
   'interest-cohort=()',
 ].join(', ');
 
+/** Routes that existed, were removed deliberately, and are not coming back. */
+const GONE = [
+  /^\/social(\/|$)/,      // reel and carousel pages, paused
+  /^\/api\/card$/,         // image renderer, could not run on Vercel
+  /^\/api\/og$/,
+];
+
 export async function onRequest(context, next) {
   /*
    * One address per page.
@@ -75,6 +82,32 @@ export async function onRequest(context, next) {
    * the scheduled POSTs to /api/* go through here too.
    */
   const { pathname, search } = context.url;
+
+  /*
+   * Pages that were removed on purpose answer 410, not 404.
+   *
+   * The difference matters here more than it usually would. A 404 tells a
+   * crawler the page is missing and might return, so it comes back to check;
+   * a 410 says it was deliberately removed and will not. Search Console
+   * shows this site getting forty crawl requests in ninety days with zero
+   * discovery crawls, so every request spent re-checking something that was
+   * deleted is taken from a budget that is already too small to index the
+   * pages that do exist.
+   *
+   * /social/* were the reel and carousel pages, removed when that automation
+   * was paused. /api/card and /api/og were an image renderer that could not
+   * run on this platform.
+   *
+   * If any of these come back, delete its line. A 410 on a route that now
+   * exists is invisible in testing and fatal in production.
+   */
+  if (GONE.some((re) => re.test(pathname))) {
+    return new Response('Gone. This page was removed.', {
+      status: 410,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
+    });
+  }
+
   if (pathname.length > 1 && pathname.endsWith('/')) {
     return new Response(null, {
       status: 308,
